@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - SecureShare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-800 relative">
+    <!-- Back Button -->
+    <a href="/"
+        class="absolute top-6 left-6 flex items-center gap-2 text-green-700 hover:text-green-900 font-semibold transition bg-white/80 backdrop-blur-sm shadow-sm px-4 py-2 rounded-full border border-green-200 hover:bg-green-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                clip-rule="evenodd" />
+        </svg>
+        Home
+    </a>
+
+    <div class="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+        style="height: 650px;">
+
+        <!-- Left Panel -->
+        <div class="hidden md:flex flex-col justify-between w-1/2 bg-green-800 p-12 relative z-10 box-border">
+            <div>
+                <div class="flex items-center gap-3 mb-10">
+                    <div
+                        class="bg-green-500 text-white rounded-lg h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        S</div>
+                    <span class="text-white font-bold text-xl tracking-wide">SecureShare</span>
+                </div>
+
+                <h1 class="text-5xl font-extrabold text-white mb-2 leading-tight">Identity Verification</h1>
+                <h1 class="text-5xl font-extrabold text-green-400 mb-8 leading-tight">Step Two</h1>
+
+                <p class="text-green-100 text-sm leading-relaxed max-w-sm">
+                    Enter the 6-digit verification code sent to your Corporate Email Address. This code ensures you own
+                    the account linked to your entity.
+                </p>
+            </div>
+
+            <div class="flex gap-4 mt-6 text-[10px] font-bold text-green-300 uppercase tracking-widest">
+                <span>VERIFY Identity</span>
+                <span>SECURE ACCESS</span>
+            </div>
+        </div>
+
+        <!-- Right Panel - OTP Verification Form -->
+        <div
+            class="w-full md:w-1/2 p-12 flex flex-col justify-center text-center relative bg-white box-border animate-fade-in my-auto">
+            <div>
+                <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-shield-halved text-green-600 text-2xl"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-gray-900 mb-2">Verify Identity</h3>
+                <p class="text-sm text-gray-500 max-w-[280px] mx-auto leading-relaxed mb-8">
+                    We've sent a 6-digit OTP code to <br><b class="text-green-700">{{ email }}</b>.<br>It expires in 5
+                    minutes.
+                </p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <script>
+                Swal.fire({
+                    icon: '{{ category }}',
+                    title: '{{ "Wait!" if category == "error" else "Success!" }}',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#22c55e',
+                    confirmButtonText: '{{ "Try Again" if category == "error" else "OK" }}'
+                }).then(() => {
+
+                    window.location.href = "{{ success_redirect }}";
+
+                });
+            </script>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form action="{{ url_for('handle_verify_otp') }}" method="POST"
+                class="flex flex-col items-center w-full space-y-8">
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="type" value="{{ type }}">
+                <input type="hidden" name="otp" id="otp-input" required>
+
+                <div class="flex justify-center gap-2 sm:gap-3 w-full" id="otp-inputs">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 1)" id="otp-1">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, 1)" id="otp-2">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 3)" onkeydown="moveToPrev(event, 2)" id="otp-3">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 4)" onkeydown="moveToPrev(event, 3)" id="otp-4">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 5)" onkeydown="moveToPrev(event, 4)" id="otp-5">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 6)" onkeydown="moveToPrev(event, 5)" id="otp-6">
+                </div>
+
+                <div class="flex flex-col gap-3 w-full max-w-[320px]">
+                    <button type="submit"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md text-sm">
+                        Verify Code
+                    </button>
+
+                    <button type="button" onclick="resendOTP()"
+                        class="w-full bg-transparent hover:bg-gray-50 text-gray-500 font-semibold py-3.5 rounded-xl border-2 border-gray-200 transition-all text-sm">
+                        Resend OTP
+                    </button>
+                </div>
+            </form>
+
+            <form id="resendForm" action="{{ url_for('resend_otp') }}" method="POST" style="display:none;">
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="type" value="{{ type }}">
+            </form>
+
+            <div class="mt-8 text-center absolute bottom-12 w-full left-0">
+                <a href="/login" class="text-sm text-green-600 hover:text-green-800 font-semibold transition">Back to
+                    Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function resendOTP() {
+            document.getElementById('resendForm').submit();
+        }
+
+        function moveToNext(elem, index) {
+            if (elem.value.length >= 1) {
+                if (index < 6) {
+                    document.getElementById('otp-' + (index + 1)).focus();
+                } else {
+                    elem.blur();
+                }
+            }
+            updateHiddenOTP();
+        }
+
+        function moveToPrev(event, index) {
+            if (event.key === 'Backspace' && event.target.value === '') {
+                if (index > 0) {
+                    document.getElementById('otp-' + index).focus();
+                }
+            }
+            updateHiddenOTP();
+        }
+
+        function updateHiddenOTP() {
+            let otpStr = '';
+            for (let i = 1; i <= 6; i++) {
+                otpStr += document.getElementById('otp-' + i).value;
+            }
+            document.getElementById('otp-input').value = otpStr;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const otpInputs = document.querySelectorAll('.otp-box');
+            otpInputs.forEach((input, index) => {
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pastedData = e.clipboardData.getData('text').trim();
+                    if (/^\d{1,6}$/.test(pastedData)) {
+                        for (let i = 0; i < pastedData.length; i++) {
+                            if (index + i < 6) {
+                                document.getElementById('otp-' + (index + i + 1)).value = pastedData[i];
+                            }
+                        }
+                        const focusIndex = Math.min(index + pastedData.length, 6);
+                        if (focusIndex < 6) {
+                            document.getElementById('otp-' + (focusIndex + 1)).focus();
+                        } else {
+                            document.getElementById('otp-6').blur();
+                        }
+                        updateHiddenOTP();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

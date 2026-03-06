@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - SecureShare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-800 relative">
+    <!-- Back Button -->
+    <a href="/"
+        class="absolute top-6 left-6 flex items-center gap-2 text-green-700 hover:text-green-900 font-semibold transition bg-white/80 backdrop-blur-sm shadow-sm px-4 py-2 rounded-full border border-green-200 hover:bg-green-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                clip-rule="evenodd" />
+        </svg>
+        Home
+    </a>
+
+    <div class="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+        style="height: 650px;">
+        <!-- Left Panel -->
+        <div class="hidden md:flex flex-col justify-between w-1/2 bg-green-800 p-12 relative z-10 box-border">
+            <div>
+                <div class="flex items-center gap-3 mb-10">
+                    <div
+                        class="bg-green-500 text-white rounded-lg h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        S</div>
+                    <span class="text-white font-bold text-xl tracking-wide">SecureShare</span>
+                </div>
+
+                <h1 class="text-5xl font-extrabold text-white mb-2 leading-tight">Secure Entity Hub</h1>
+                <h1 class="text-5xl font-extrabold text-green-400 mb-8 leading-tight">Data<br>Cryptography</h1>
+
+                <p class="text-green-100 text-sm leading-relaxed max-w-sm">
+                    An AES-Based Anonymous Data Sharing Scheme with Dynamic Revocation and Third-Party Auditing for
+                    Cloud Environments
+                </p>
+            </div>
+
+            <div class="flex gap-4 mt-6 text-[10px] font-bold text-green-300 uppercase tracking-widest">
+                <span>CLOUD NATIVE</span>
+                <span>NOSQL METADATA</span>
+                <span>ZERO TRUST</span>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="w-full md:w-1/2 p-12 flex flex-col justify-center relative bg-white box-border">
+            <div id="register-container" class="w-full transition-opacity duration-300">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Register Entity</h2>
+                <p class="text-sm text-gray-500 mb-6 max-w-sm leading-relaxed">Identity verification required to access
+                    encrypted volumes.</p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                {% for category, message in messages %}
+                <script>
+                    Swal.fire({
+                        icon: '{{ category }}',
+                        title: '{{ "Wait!" if category == "error" else "Success!" }}',
+                        text: '{{ message }}',
+                        confirmButtonColor: '#22c55e',
+                        confirmButtonText: '{{ "Try Again" if category == "error" else "OK" }}'
+                    }).then(() => {
+                        window.location.href = "{{ success_redirect }}";
+
+                    });
+                </script>
+                {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                <form id="regForm" method="POST" onsubmit="event.preventDefault(); validateForm();" class="space-y-4">
+
+                    <input type="text" name="username" required placeholder="Full Professional Name"
+                        class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                    <input type="email" name="email" required placeholder="Corporate Email Address"
+                        class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="relative w-full">
+                            <input type="password" id="pass" name="password" required placeholder="Cipher Password"
+                                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                            <button type="button" onclick="togglePasswordVisibility('pass', 'toggleIconPass')"
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-green-600 focus:outline-none">
+                                <i id="toggleIconPass" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="relative w-full">
+                            <input type="password" id="cpass" name="confirm_password" required
+                                placeholder="Confirm Cipher"
+                                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                            <button type="button" onclick="togglePasswordVisibility('cpass', 'toggleIconCPass')"
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-green-600 focus:outline-none">
+                                <i id="toggleIconCPass" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p id="match-msg" class="text-[11px] font-semibold mt-1 pl-1 hidden"></p>
+
+                    <div id="password-checklist"
+                        class="text-[11px] mt-1 pl-1 space-y-1 font-semibold opacity-0 max-h-0 overflow-hidden transition-all duration-300 ease-in-out">
+                        <p id="req-len" class="text-red-500 transition-colors duration-300"><i
+                                class="fa-solid fa-circle-xmark mr-1"></i> Minimum 8 characters</p>
+                        <p id="req-num" class="text-red-500 transition-colors duration-300"><i
+                                class="fa-solid fa-circle-xmark mr-1"></i> At least 1 number</p>
+                        <p id="req-spc" class="text-red-500 transition-colors duration-300"><i
+                                class="fa-solid fa-circle-xmark mr-1"></i> At least 1 special character</p>
+                    </div>
+                    <p id="password-secured-msg" class="text-[11px] font-semibold mt-1 pl-1 text-green-600 hidden"><i
+                            class="fa-solid fa-shield-check mr-1"></i> Password Secured ✅</p>
+
+                    <div class="relative w-full">
+                        <input type="tel" id="phone" name="phone" required
+                            placeholder="Contact Number (e.g. 5555500000)" maxlength="10" minlength="10"
+                            pattern="[0-9]{10}"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, ''); validatePhone();"
+                            class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                        <p id="phone-error" class="text-[11px] font-semibold mt-1 pl-1 text-red-500 hidden"></p>
+                    </div>
+                    <div>
+                        <label
+                            class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 mt-2">Operational
+                            Role</label>
+                        <input type="hidden" id="roleInput" name="role" value="owner">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="selectRole('owner', this)"
+                                class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-[#15803d] text-white shadow-sm border border-[#15803d]">OWNER</button>
+                            <button type="button" onclick="selectRole('member', this)"
+                                class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100">MEMBER</button>
+                            <button type="button" onclick="selectRole('auditor', this)"
+                                class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100">TPA</button>
+                        </div>
+                    </div>
+
+                    <div id="action-buttons-container" class="flex flex-col gap-[15px] pt-4">
+                        <button type="submit" id="submit-btn" disabled
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition text-sm opacity-50 cursor-not-allowed">
+                            Initialize Account
+                        </button>
+
+                        <div class="text-center w-full">
+                            <a href="/login"
+                                class="text-sm text-green-600 hover:text-green-800 font-semibold transition">Already
+                                registered? Identity Login</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div id="otp-section"
+                class="hidden flex-col items-center justify-center text-center w-full space-y-8 animate-fade-in my-auto">
+                <div>
+                    <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fa-solid fa-shield-halved text-green-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-3xl font-extrabold text-gray-900 mb-2">Verify Identity</h3>
+                    <p class="text-sm text-gray-500 max-w-[280px] mx-auto leading-relaxed">
+                        We've sent a secure 6-digit code to<br><b id="verification-email" class="text-green-700"></b>
+                    </p>
+                </div>
+
+                <div class="flex justify-center gap-2 sm:gap-3 w-full" id="otp-inputs">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 1)" id="otp-1">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, 1)" id="otp-2">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 3)" onkeydown="moveToPrev(event, 2)" id="otp-3">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 4)" onkeydown="moveToPrev(event, 3)" id="otp-4">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 5)" onkeydown="moveToPrev(event, 4)" id="otp-5">
+                    <input type="text" maxlength="1"
+                        class="otp-box w-10 h-12 sm:w-12 sm:h-14 text-center text-2xl font-extrabold text-gray-900 border-2 border-gray-300 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all bg-white shadow-sm"
+                        oninput="moveToNext(this, 6)" onkeydown="moveToPrev(event, 5)" id="otp-6">
+                </div>
+                <input type="hidden" id="otp-input">
+
+                <div class="flex flex-col gap-3 w-full max-w-[320px]">
+                    <button type="button" onclick="verifyOTP()" id="verify-btn"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md text-sm">
+                        Verify & Register
+                    </button>
+                    <button type="button" onclick="resendOTP()" id="resend-btn"
+                        class="w-full bg-transparent hover:bg-gray-50 text-gray-500 font-semibold py-3.5 rounded-xl border-2 border-gray-200 transition-all text-sm">
+                        Resend OTP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function validatePhone() {
+            const phone = document.getElementById('phone').value;
+            const phoneError = document.getElementById('phone-error');
+            const isPhoneValid = phone.length === 10;
+
+            if (phone.length > 0 && !isPhoneValid) {
+                phoneError.textContent = "Mobile number must be exactly 10 digits.";
+                phoneError.classList.remove('hidden');
+            } else {
+                phoneError.classList.add('hidden');
+            }
+            checkAllValidations();
+        }
+
+        function checkAllValidations() {
+            const pass = document.getElementById('pass').value;
+            const cpass = document.getElementById('cpass').value;
+            const phone = document.getElementById('phone').value;
+            const submitBtn = document.getElementById('submit-btn');
+
+            const isLenValid = pass.length >= 8;
+            const isNumValid = /\d/.test(pass);
+            const isSpcValid = /[^a-zA-Z0-9]/.test(pass);
+            const isMatch = pass === cpass && pass !== '';
+            const isPhoneValid = phone.length === 10;
+
+            const isAllValid = isLenValid && isNumValid && isSpcValid && isMatch && isPhoneValid;
+
+            if (isAllValid) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            return isAllValid;
+        }
+
+        function showChecklist() {
+            const checklist = document.getElementById('password-checklist');
+            const securedMsg = document.getElementById('password-secured-msg');
+
+            checklist.classList.remove('opacity-0', 'max-h-0');
+            checklist.classList.add('opacity-100', 'max-h-40', 'mt-1');
+            securedMsg.classList.add('hidden');
+        }
+
+        function handleBlur() {
+            const isAllValid = checkAllValidations();
+            const checklist = document.getElementById('password-checklist');
+            const securedMsg = document.getElementById('password-secured-msg');
+            const matchMsg = document.getElementById('match-msg');
+
+            if (isAllValid) {
+                checklist.classList.remove('opacity-100', 'max-h-40', 'mt-1');
+                checklist.classList.add('opacity-0', 'max-h-0');
+                matchMsg.classList.add('hidden'); // Hide the match msg as well
+                setTimeout(() => {
+                    securedMsg.classList.remove('hidden');
+                }, 300); // Wait for collapse animation
+            }
+        }
+
+        document.getElementById('pass').addEventListener('focus', showChecklist);
+        document.getElementById('cpass').addEventListener('focus', showChecklist);
+
+        document.getElementById('pass').addEventListener('blur', handleBlur);
+        document.getElementById('cpass').addEventListener('blur', handleBlur);
+
+        document.getElementById('pass').addEventListener('input', function () {
+            const val = this.value;
+
+            const lenReq = document.getElementById('req-len');
+            if (val.length >= 8) {
+                lenReq.className = 'text-green-600 transition-colors duration-300';
+                lenReq.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> Minimum 8 characters';
+            } else {
+                lenReq.className = 'text-red-500 transition-colors duration-300';
+                lenReq.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> Minimum 8 characters';
+            }
+
+            const numReq = document.getElementById('req-num');
+            if (/\d/.test(val)) {
+                numReq.className = 'text-green-600 transition-colors duration-300';
+                numReq.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> At least 1 number';
+            } else {
+                numReq.className = 'text-red-500 transition-colors duration-300';
+                numReq.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> At least 1 number';
+            }
+
+            const spcReq = document.getElementById('req-spc');
+            if (/[^a-zA-Z0-9]/.test(val)) {
+                spcReq.className = 'text-green-600 transition-colors duration-300';
+                spcReq.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> At least 1 special character';
+            } else {
+                spcReq.className = 'text-red-500 transition-colors duration-300';
+                spcReq.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1"></i> At least 1 special character';
+            }
+
+            // Also trigger match validation if cpass is not empty
+            if (document.getElementById('cpass').value !== '') {
+                document.getElementById('cpass').dispatchEvent(new Event('input'));
+            } else {
+                checkAllValidations();
+            }
+        });
+
+        document.getElementById('cpass').addEventListener('input', function () {
+            const passVal = document.getElementById('pass').value;
+            const cpassVal = this.value;
+            const matchMsg = document.getElementById('match-msg');
+            const cpassInput = document.getElementById('cpass');
+
+            if (cpassVal === '') {
+                matchMsg.classList.add('hidden');
+                cpassInput.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500', 'border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+                cpassInput.classList.add('border-gray-300');
+            } else {
+                matchMsg.classList.remove('hidden');
+                if (passVal === cpassVal) {
+                    matchMsg.textContent = 'Passwords match!';
+                    matchMsg.className = 'text-[11px] font-semibold mt-1 pl-1 text-green-600';
+                    cpassInput.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500', 'border-gray-300');
+                    cpassInput.classList.add('border-green-500', 'focus:border-green-500', 'focus:ring-green-500');
+                } else {
+                    matchMsg.textContent = 'Passwords do not match!';
+                    matchMsg.className = 'text-[11px] font-semibold mt-1 pl-1 text-red-500';
+                    cpassInput.classList.remove('border-green-500', 'focus:border-green-500', 'focus:ring-green-500', 'border-gray-300');
+                    cpassInput.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+                }
+            }
+
+            checkAllValidations();
+        });
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function validateForm() {
+            const p = document.getElementById('pass').value;
+            const cp = document.getElementById('cpass').value;
+
+            if (p.length < 8 || !/\d/.test(p) || !/[^a-zA-Z0-9]/.test(p)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Password',
+                    text: 'Please ensure all password requirements are met before submitting.',
+                    confirmButtonText: 'Try Again',
+                    confirmButtonColor: '#22c55e'
+                });
+                return;
+            }
+
+            if (p !== cp) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Input',
+                    text: 'Passwords do not match! Please re-enter.',
+                    confirmButtonText: 'Try Again',
+                    confirmButtonColor: '#22c55e'
+                });
+            } else {
+                const formData = new FormData(document.getElementById('regForm'));
+                const submitBtn = document.getElementById('submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Sending OTP...';
+
+                Swal.fire({
+                    title: 'Sending OTP...',
+                    text: 'Please wait while we secure your account.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                fetch('/handle_register', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        if (response.status === 500) {
+                            throw new Error('Server Error');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            Swal.close();
+                            Swal.fire('Sent!', 'OTP is in your inbox', 'success');
+                            document.getElementById('register-container').style.display = 'none';
+                            document.getElementById('otp-section').classList.remove('hidden');
+                            document.getElementById('otp-section').classList.add('flex');
+                            document.getElementById('verification-email').innerText = formData.get('email');
+                        } else {
+                            Swal.fire('Wait!', 'Failed to send', 'error');
+                            submitBtn.disabled = false;
+                            submitBtn.innerText = 'Initialize Account';
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('Wait!', 'Failed to send', 'error');
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Initialize Account';
+                    });
+            }
+        }
+
+        function verifyOTP() {
+            const otp = document.getElementById('otp-input').value;
+            const email = document.getElementById('verification-email').innerText;
+
+            if (otp.length !== 6) {
+                Swal.fire({ icon: 'error', title: 'Invalid Input', text: 'Please enter a 6-digit OTP.', confirmButtonColor: '#22c55e' });
+                return;
+            }
+
+            document.getElementById('verify-btn').disabled = true;
+            document.getElementById('verify-btn').innerText = 'Verifying...';
+
+            const fd = new FormData();
+            fd.append('email', email);
+            fd.append('otp', otp);
+
+            fetch('/verify-otp', {
+                method: 'POST',
+                body: fd
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: 'OTP Verified! Redirecting to Dashboard...',
+                            confirmButtonColor: '#22c55e',
+                            timer: 2000,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.href = data.redirect_url;
+                        });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Invalid OTP', text: data.message, confirmButtonColor: '#22c55e' });
+                        document.getElementById('verify-btn').disabled = false;
+                        document.getElementById('verify-btn').innerText = 'Verify & Register';
+                    }
+                })
+                .catch(err => {
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong.', confirmButtonColor: '#22c55e' });
+                    document.getElementById('verify-btn').disabled = false;
+                    document.getElementById('verify-btn').innerText = 'Verify & Register';
+                });
+        }
+
+        function resendOTP() {
+            const email = document.getElementById('verification-email').innerText;
+            const fd = new FormData();
+            fd.append('email', email);
+            fd.append('type', 'register');
+
+            document.getElementById('resend-btn').disabled = true;
+            document.getElementById('resend-btn').innerText = 'Sending...';
+
+            fetch('/resend_otp', {
+                method: 'POST',
+                body: fd
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({ icon: 'success', title: 'Sent', text: 'A new OTP has been sent to your email.', confirmButtonColor: '#22c55e' });
+                    } else {
+                        Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Wait!', confirmButtonColor: '#22c55e' });
+                    }
+                    document.getElementById('resend-btn').disabled = false;
+                    document.getElementById('resend-btn').innerText = 'Resend OTP';
+                });
+        }
+        function selectRole(roleValue, btn) {
+            document.getElementById('roleInput').value = roleValue;
+            const buttons = document.querySelectorAll('.role-btn');
+            buttons.forEach(b => {
+                b.className = 'role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100';
+            });
+            btn.className = 'role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-[#15803d] text-white shadow-sm border border-[#15803d]';
+
+            triggerRoleChange(roleValue);
+        }
+
+        function triggerRoleChange(roleVal) {
+            const ownerEmailGroup = document.getElementById('ownerEmailGroup');
+            const ownerEmailInput = document.getElementById('ownerEmailInput');
+            if (!ownerEmailGroup) return;
+            if (roleVal === 'member') {
+                ownerEmailGroup.classList.remove('hidden');
+                ownerEmailInput.required = true;
+            } else {
+                ownerEmailGroup.classList.add('hidden');
+                ownerEmailInput.required = false;
+                ownerEmailInput.value = '';
+            }
+        }
+
+        function moveToNext(elem, index) {
+            if (elem.value.length >= 1) {
+                if (index < 6) {
+                    document.getElementById('otp-' + (index + 1)).focus();
+                } else {
+                    elem.blur();
+                }
+            }
+            updateHiddenOTP();
+        }
+
+        function moveToPrev(event, index) {
+            if (event.key === 'Backspace' && event.target.value === '') {
+                if (index > 0) {
+                    document.getElementById('otp-' + index).focus();
+                }
+            }
+            updateHiddenOTP();
+        }
+
+        function updateHiddenOTP() {
+            let otpStr = '';
+            for (let i = 1; i <= 6; i++) {
+                otpStr += document.getElementById('otp-' + i).value;
+            }
+            document.getElementById('otp-input').value = otpStr;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const otpInputs = document.querySelectorAll('.otp-box');
+            otpInputs.forEach((input, index) => {
+                input.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const pastedData = e.clipboardData.getData('text').trim();
+                    if (/^\d{1,6}$/.test(pastedData)) {
+                        for (let i = 0; i < pastedData.length; i++) {
+                            if (index + i < 6) {
+                                document.getElementById('otp-' + (index + i + 1)).value = pastedData[i];
+                            }
+                        }
+                        const focusIndex = Math.min(index + pastedData.length, 6);
+                        if (focusIndex < 6) {
+                            document.getElementById('otp-' + (focusIndex + 1)).focus();
+                        } else {
+                            document.getElementById('otp-6').blur();
+                        }
+                        updateHiddenOTP();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

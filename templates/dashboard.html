@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Secure Entity Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Modal Styles */
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-green-900 text-white flex flex-col justify-between">
+        <div>
+            <!-- Branding -->
+            <div class="p-6 border-b border-green-800">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="bg-green-500 text-white rounded focus:outline-none h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        S
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-wide block">SECURESHARE</span>
+                        <span class="text-xs text-green-300 font-semibold tracking-widest">V0.1</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="p-4 space-y-2 mt-4 text-sm font-medium">
+                <p class="text-xs text-green-400 font-bold tracking-widest uppercase mb-4 px-4">Operational Menu</p>
+                <a href="/dashboard"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'dashboard' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-table-columns w-5 text-center"></i> Dashboard
+                </a>
+
+                {% if user.role == 'owner' %}
+                <a href="/members"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'members' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-users w-5 text-center"></i> Group Persons
+                </a>
+                {% endif %}
+
+                <a href="/vault"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'vault' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-cloud w-5 text-center"></i> Vault Folders
+                </a>
+                <a href="/chat"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition relative {% if active_page == 'chat' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-comments w-5 text-center"></i> Communication
+                    <span id="chat-alert-dot"
+                        class="hidden h-2 w-2 rounded-full bg-red-500 absolute top-3 right-4 shadow-[0_0_5px_rgba(239,68,68,0.8)]"></span>
+                </a>
+                <a href="/bin"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'bin' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-trash-can w-5 text-center"></i> Recycle Bin
+                </a>
+
+            </nav>
+        </div>
+
+        <!-- User Info / Logout -->
+        <div class="p-4 border-t border-green-800">
+            <div class="flex items-center gap-3 p-3 bg-green-800 rounded-lg mb-4">
+                <div class="h-10 w-10 rounded bg-green-700 flex items-center justify-center text-lg font-bold">
+                    {{ user.username[0] | upper }}
+                </div>
+                <div>
+                    <span class="block text-sm font-bold truncate w-32">{{ user.username }}</span>
+                    <span class="block text-xs text-green-300 font-bold uppercase">{{ user.role }}</span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center text-xs font-bold uppercase tracking-widest mb-4 px-2">
+                <span class="text-green-300">Identity Status</span>
+                <span class="text-green-400">Active</span>
+            </div>
+
+            {% if user.role == 'member' %}
+            <!-- Moved Leave Group to header -->
+            {% endif %}
+
+            <a href="/logout"
+                class="block w-full text-center bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 font-bold text-sm tracking-wide py-3 rounded-lg transition">
+                TERMINATE SESSION
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-y-auto">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                Swal.fire({
+                    icon: '{{ category }}',
+                    title: '{{ "Notice" }}',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#22c55e',
+                    timer: 3000
+                });
+            });
+        </script>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Header -->
+        <header class="flex justify-between items-center p-8 bg-white border-b border-gray-200">
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight uppercase">{{ active_page }}</h1>
+
+            <div class="flex items-center gap-4 relative">
+                <!-- Notification Bell -->
+                <div class="relative cursor-pointer" onclick="toggleNotifications(event)">
+                    <div class="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition relative">
+                        <i class="fa-regular fa-bell text-gray-600 text-xl"></i>
+                        {% if recent_activities %}
+                        <span class="absolute top-0 right-0 h-3 w-3 rounded-full bg-red-500 border border-white"></span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Notification Dropdown -->
+                <div id="notificationDropdown"
+                    class="hidden absolute top-12 right-0 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden text-sm">
+                    <div
+                        class="p-4 border-b border-gray-100 bg-gray-50 font-bold text-gray-800 flex justify-between items-center">
+                        Recent Activity
+                    </div>
+                    <ul class="max-h-64 overflow-y-auto w-full">
+                        {% for act in recent_activities %}
+                        <li class="p-4 border-b border-gray-50 hover:bg-gray-50 transition w-full">
+                            <div class="flex items-start gap-3 w-full">
+                                <div class="mt-1">
+                                    {% if act.action_type == 'Logged In' %}
+                                    <i class="fa-solid fa-right-to-bracket text-blue-500"></i>
+                                    {% elif act.action_type == 'Uploaded File' %}
+                                    <i class="fa-solid fa-cloud-arrow-up text-green-500"></i>
+                                    {% elif act.action_type == 'Downloaded File' or act.action_type == 'Viewed File' %}
+                                    <i class="fa-solid fa-eye text-yellow-500"></i>
+                                    {% else %}
+                                    <i class="fa-solid fa-circle-info text-gray-400"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="w-full">
+                                    <p class="font-bold text-gray-900 text-xs w-full">{{ act.action_type }}</p>
+                                    <p class="text-gray-500 text-[10px]">{{ act.member_email }}</p>
+                                    {% if act.filename %}
+                                    <p class="text-green-600 font-mono text-[9px] truncate w-[220px]">{{ act.filename }}
+                                    </p>
+                                    {% endif %}
+                                    <p class="text-gray-400 text-[9px] mt-1">{{ act.timestamp }}</p>
+                                </div>
+                            </div>
+                        </li>
+                        {% else %}
+                        <li class="p-6 text-center text-gray-500 w-full">
+                            No recent activity.
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <script>
+                    function toggleNotifications(event) {
+                        event.stopPropagation();
+                        const dropdown = document.getElementById('notificationDropdown');
+                        dropdown.classList.toggle('hidden');
+                    }
+
+                    document.addEventListener('click', function (event) {
+                        const dropdown = document.getElementById('notificationDropdown');
+                        if (!dropdown.contains(event.target)) {
+                            dropdown.classList.add('hidden');
+                        }
+                    });
+                </script>
+
+                {% if user.role == 'member' and user.owner_email %}
+                <form action="/leave_group" method="POST" id="leaveGroupForm" class="m-0 border-r border-gray-300 pr-4">
+                    <button type="button" onclick="confirmLeaveGroup()"
+                        class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-6 rounded-lg text-sm tracking-wide transition shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-right-from-bracket"></i> LEAVE GROUP
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if user.role == 'owner' or (user.role == 'member' and user.owner_email) %}
+                <button onclick="document.getElementById('uploadModal').showModal()"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm tracking-wide transition shadow-md flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> SECURE ASSET INGEST
+                </button>
+                {% endif %}
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="p-8 max-w-7xl mx-auto w-full space-y-8">
+
+            {% if active_page == 'dashboard' %}
+
+            {% if user.role == 'member' and not user.owner_email %}
+            <!-- EMPTY STATE FOR MEMBER -->
+            <div
+                class="bg-white p-12 rounded-2xl shadow-sm border border-gray-200 text-center flex flex-col items-center">
+                <div class="h-24 w-24 bg-green-50 rounded-full flex items-center justify-center mb-6">
+                    <i class="fa-solid fa-users text-4xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-gray-900 mb-2">You haven't joined a group yet</h2>
+                <p class="text-gray-500 mb-8 max-w-md">To access files and start collaborating, you need to join an
+                    existing SecureShare group using an Invitation Code provided by the Group Owner.</p>
+                <button onclick="document.getElementById('joinGroupModal').showModal()"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg tracking-wide transition shadow-lg flex items-center gap-3">
+                    <i class="fa-solid fa-right-to-bracket"></i> JOIN A GROUP
+                </button>
+            </div>
+
+            <dialog id="joinGroupModal" class="p-0 rounded-2xl shadow-2xl border-0 w-full max-w-md bg-transparent">
+                <div class="bg-white rounded-2xl overflow-hidden flex flex-col">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-extrabold text-gray-900 text-lg uppercase tracking-wide">Enter Invitation Code
+                        </h3>
+                        <button onclick="document.getElementById('joinGroupModal').close()"
+                            class="text-gray-400 hover:text-red-500 transition">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <p class="text-sm text-gray-500 mb-4">Enter the Secret Team Key provided by your owner to
+                            request access.</p>
+                        <input type="text" id="invitationCodeInput"
+                            class="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 mb-6 font-mono font-bold"
+                            placeholder="E.g. A1B2C3D4">
+                        <button onclick="submitJoinRequest()"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-sm tracking-wide transition shadow-md">
+                            SEND JOIN REQUEST
+                        </button>
+                    </div>
+                </div>
+            </dialog>
+            <script>
+                function submitJoinRequest() {
+                    const code = document.getElementById('invitationCodeInput').value;
+                    if (!code) {
+                        Swal.fire('Error', 'Please enter an invitation code', 'error');
+                        return;
+                    }
+
+                    fetch('/request_join', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invitation_code: code })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            document.getElementById('joinGroupModal').close();
+                            if (data.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Request Sent',
+                                    text: data.message,
+                                    confirmButtonColor: '#22c55e'
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: data.error,
+                                    confirmButtonColor: '#ef4444'
+                                });
+                            }
+                        })
+                        .catch(e => console.error(e));
+                }
+            </script>
+            {% else %}
+            <!-- Stat Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Card 1 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 relative overflow-hidden group">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Total Files In Vault</h3>
+                    <div class="text-5xl font-extrabold text-gray-900 mb-6">{{ files_count }}</div>
+                    <div class="flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Local Server
+                            Storage</span>
+                    </div>
+                    <i
+                        class="fa-solid fa-server absolute -right-4 -bottom-4 text-8xl text-gray-50 group-hover:text-green-50 transition duration-500"></i>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 relative overflow-hidden group">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Linked Members</h3>
+                    <div id="members-count-badge" class="text-5xl font-extrabold text-gray-900 mb-6">{{ members_count if
+                        members_count is defined
+                        else 0 }}</div>
+                    <div class="flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-blue-500"></span>
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Active Team Node</span>
+                    </div>
+                    <i
+                        class="fa-solid fa-users absolute -right-4 -bottom-4 text-8xl text-gray-50 group-hover:text-blue-50 transition duration-500"></i>
+                </div>
+
+                <!-- Card 3: Storage Efficiency -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 relative overflow-hidden group">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Storage Efficiency</h3>
+                    <div class="text-5xl font-extrabold text-green-600 mb-6">{{ savings_pct if savings_pct is defined
+                        else '0.0' }}%</div>
+                    <div class="flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Space Saved via Extreme
+                            LZMA</span>
+                    </div>
+                    <i
+                        class="fa-solid fa-compress absolute -right-4 -bottom-4 text-8xl text-gray-50 group-hover:text-green-50 transition duration-500"></i>
+                </div>
+            </div>
+
+            <!-- Centralized Ingest Zone for Owner -->
+            {% if user.role == 'owner' %}
+            <div class="bg-white p-8 rounded-2xl shadow-sm border-2 border-dashed border-green-300 hover:border-green-500 transition-colors flex flex-col items-center justify-center text-center group cursor-pointer relative"
+                id="drag-drop-zone" onclick="document.getElementById('fileInput').click()"
+                ondrop="handleCentralDrop(event)" ondragover="event.preventDefault()">
+                <div
+                    class="mb-4 text-green-500 bg-green-50 rounded-full h-20 w-20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl"></i>
+                </div>
+                <h3 class="text-xl font-extrabold text-gray-900 mb-2">Central File Ingest Zone</h3>
+                <p class="text-sm text-gray-500 font-medium mb-6 max-w-md">Drag & drop a file here, or click to browse.
+                    Files will be instantly compressed via Extreme LZMA and encrypted with AES-256 Fernet.</p>
+                <input type="file" id="fileInput" class="hidden" onchange="handleCentralDrop(event, true)">
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <!-- Managed Assets Table -->
+                <div class="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                        <h2
+                            class="text-lg font-extrabold text-gray-900 tracking-wide uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-hard-drive text-green-600"></i> Managed Assets
+                        </h2>
+                        <button id="bulkDeleteBtn" onclick="deleteSelectedFiles()"
+                            class="hidden bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all duration-200">
+                            <i class="fa-solid fa-trash mr-2"></i>Delete Selected
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-widest border-b border-gray-200">
+                                    <th class="p-4 pl-6 w-12"><input type="checkbox" id="selectAllCheckbox"
+                                            onchange="toggleAllCheckboxes(this)"
+                                            class="w-4 h-4 text-green-600 rounded focus:ring-green-500"></th>
+                                    <th class="p-4 font-bold">File Name</th>
+                                    <th class="p-4 font-bold">Original</th>
+                                    <th class="p-4 font-bold">Optimized</th>
+                                    <th class="p-4 font-bold">Savings</th>
+                                    <th class="p-4 pr-6 text-right font-bold">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm">
+                                {% for file in dashboard_files %}
+                                <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                                    <td class="p-4 pl-6 w-12"><input type="checkbox"
+                                            class="file-checkbox w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                            value="{{ file.id }}" onchange="toggleDeleteButton()"></td>
+                                    <td class="p-4 font-medium text-gray-900 flex items-center gap-3">
+                                        <i class="fa-solid fa-file-shield text-green-500"></i> {{ file.filename }}
+                                    </td>
+                                    <td class="p-4 font-mono text-gray-500 text-xs">{{ file.Original }}</td>
+                                    <td class="p-4 font-mono text-green-600 font-bold text-xs">{{ file.Optimized }}</td>
+                                    <td class="p-4">
+                                        <span
+                                            class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded">{{
+                                            file.Savings }}</span>
+                                    </td>
+                                    <td class="p-4 pr-6 text-right">
+                                        <a href="/download/{{ file.Key }}"
+                                            class="text-green-600 hover:text-green-800 font-bold text-xs"
+                                            title="Decrypt & Download" onclick="mockDecrypt(event, false)">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        <a href="/delete_asset/{{ file.Key }}"
+                                            class="text-red-500 hover:text-red-700 font-bold text-xs ml-3"
+                                            title="Delete Asset">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-gray-500 text-sm">No files ingested yet.
+                                        Use the zone above.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Group Members Table -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+                    <div class="p-6 border-b border-gray-200 bg-gray-50">
+                        <h2
+                            class="text-lg font-extrabold text-gray-900 tracking-wide uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-users text-blue-600"></i> Synced Members
+                        </h2>
+                    </div>
+                    <div class="flex-1 overflow-y-auto max-h-[500px]">
+                        <ul class="divide-y divide-gray-100">
+                            {% for member in group_members %}
+                            <li class="p-4 hover:bg-gray-50 transition flex items-center gap-4">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg border border-blue-200">
+                                    {{ member.username[0] | upper }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">{{ member.username }}</p>
+                                    <p class="text-xs text-gray-500 font-mono">{{ member.email }}</p>
+                                </div>
+                                <div class="ml-auto">
+                                    <span class="h-2 w-2 rounded-full bg-green-500 inline-block" title="Active"></span>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="p-8 text-center text-gray-500 text-sm">No members linked to your Team Key yet.
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Owner Administrative Panel -->
+            {% if user.role == 'owner' %}
+
+            {% if pending_requests and pending_requests|length > 0 %}
+            <!-- Pending Requests Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col mb-8">
+                <div class="p-6 border-b border-gray-200 bg-yellow-50">
+                    <h2 class="text-lg font-extrabold text-yellow-900 tracking-wide uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-user-clock text-yellow-600"></i> Pending Join Requests
+                    </h2>
+                </div>
+                <div class="flex-1 overflow-y-auto max-h-[300px]">
+                    <ul class="divide-y divide-gray-100">
+                        {% for req in pending_requests %}
+                        <li class="p-4 hover:bg-gray-50 transition flex items-center justify-between gap-4"
+                            id="req-{{ req.id }}">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center font-bold text-lg border border-yellow-200">
+                                    {{ req.username[0] | upper }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">{{ req.username }}</p>
+                                    <p class="text-xs text-gray-500 font-mono">{{ req.user_email }}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="handleRequest('{{ req.id }}', true)"
+                                    class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-2 rounded text-xs font-bold transition">Approve</button>
+                                <button onclick="handleRequest('{{ req.id }}', false)"
+                                    class="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-2 rounded text-xs font-bold transition">Deny</button>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <script>
+                function handleRequest(reqId, approve) {
+                    fetch('/approve_request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ request_id: reqId, approve: approve })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.getElementById('req-' + reqId).remove();
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: approve ? 'Request Approved' : 'Request Denied',
+                                    text: approve ? 'User has been successfully added to the group.' : 'The request has been removed.',
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+                                // Fallback: if Socket.io is not connected, reload the page 
+                                if (typeof socket === 'undefined' || !socket.connected) {
+                                    setTimeout(() => window.location.reload(), 2000);
+                                }
+                            } else {
+                                Swal.fire('Error', data.error || 'Failed to process request.', 'error');
+                            }
+                        })
+                        .catch(e => console.error(e));
+                }
+            </script>
+            {% endif %}
+
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h2 class="text-lg font-extrabold text-gray-900 tracking-wide uppercase">Administrative Controls
+                    </h2>
+                    <form action="/rotate_key" method="POST" class="m-0" id="rotateKeyForm"
+                        onsubmit="handleRotateKey(event)">
+                        <button type="submit"
+                            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg text-xs tracking-wide transition shadow-md">
+                            <i class="fa-solid fa-rotate"></i> FORCE ROTATE KEY
+                        </button>
+                    </form>
+                </div>
+                <div class="p-6">
+                    <div class="p-4 bg-green-50 rounded-lg border border-green-200 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xs font-bold text-green-800 uppercase tracking-widest mb-1">Secret Team Key
+                            </h3>
+                            <p class="text-lg font-mono font-bold text-green-900" id="secretKeyDisplay">**********</p>
+                            <p class="text-xs text-green-700 mt-1">Provide this key to members to grant them access.</p>
+                        </div>
+                        <button type="button" onclick="verifyOwnerPassword()"
+                            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-xs tracking-wide transition shadow-md flex items-center gap-2">
+                            <i class="fa-solid fa-eye"></i> VIEW SECRET KEY
+                        </button>
+                    </div>
+                    <script>
+                        function verifyOwnerPassword() {
+                            Swal.fire({
+                                title: 'Owner Verification',
+                                text: 'Enter Owner Password to view Secret Team Key',
+                                input: 'password',
+                                inputAttributes: {
+                                    autocapitalize: 'off',
+                                    autocorrect: 'off'
+                                },
+                                showCancelButton: true,
+                                confirmButtonText: 'Verify',
+                                confirmButtonColor: '#16a34a',
+                                showLoaderOnConfirm: true,
+                                preConfirm: (password) => {
+                                    if (!password) {
+                                        Swal.showValidationMessage('Password is required');
+                                        return;
+                                    }
+                                    return fetch('/verify_owner', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ password: password })
+                                    })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                return response.json().then(err => { throw new Error(err.error || 'Server error') });
+                                            }
+                                            return response.json();
+                                        })
+                                        .catch(error => {
+                                            Swal.showValidationMessage(`Request failed: ${error.message}`);
+                                        });
+                                },
+                                allowOutsideClick: () => !Swal.isLoading()
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    if (result.value && result.value.success) {
+                                        const keyDisplay = document.getElementById('secretKeyDisplay');
+                                        keyDisplay.textContent = result.value.team_key;
+
+                                        setTimeout(() => {
+                                            keyDisplay.textContent = '**********';
+                                        }, 30000);
+
+                                        Swal.fire({
+                                            title: 'Verified!',
+                                            text: 'Secret key revealed for 30 seconds.',
+                                            icon: 'success',
+                                            timer: 2000,
+                                            showConfirmButton: false
+                                        });
+                                    } else {
+                                        Swal.fire({
+                                            title: 'Unauthorized Access',
+                                            text: 'Incorrect password.',
+                                            icon: 'error'
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    </script>
+                </div>
+            </div>
+            {% endif %}
+
+            {% endif %}
+
+            {% elif active_page == 'members' and user.role == 'owner' %}
+
+            <!-- Member Management -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-extrabold text-gray-900 tracking-wide uppercase">Group Membership</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-gray-50 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                <th class="p-4 pl-6">Member Identity</th>
+                                <th class="p-4">Contact</th>
+                                <th class="p-4 pr-6 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-medium text-gray-700">
+                            {% for member in members %}
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                                <td class="p-4 pl-6">
+                                    <div class="font-bold text-gray-900">{{ member.username }}</div>
+                                    <div class="text-xs text-gray-500">{{ member.email }}</div>
+                                </td>
+                                <td class="p-4 text-gray-500">{{ member.phone }}</td>
+                                <td class="p-4 pr-6 text-right">
+                                    <a href="/member_logs/{{ member.email }}"
+                                        class="text-blue-500 hover:text-blue-700 font-bold text-xs uppercase tracking-wider px-3 py-1 border border-blue-200 rounded hover:bg-blue-50 transition mr-2">
+                                        View Logs
+                                    </a>
+                                    <form action="/revoke_member/{{ member.email }}" method="POST" class="m-0 inline"
+                                        onsubmit="handleRevoke(event)">
+                                        <button type="submit"
+                                            class="text-red-500 hover:text-red-700 font-bold text-xs uppercase tracking-wider px-3 py-1 border border-red-200 rounded hover:bg-red-50 transition">
+                                            Revoke Access
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="p-8 text-center text-gray-500 font-medium">No members found in
+                                    your group.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% elif active_page == 'member_logs' and user.role == 'owner' %}
+            <!-- Member Logs -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <h2 class="text-lg font-extrabold text-gray-900 tracking-wide uppercase">
+                        Activity Logs: <span class="text-green-600">{{ member_email }}</span>
+                    </h2>
+                    <a href="/members"
+                        class="text-gray-500 hover:text-gray-700 font-bold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> Back to Members
+                    </a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-white text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                <th class="p-4 pl-6">Timestamp</th>
+                                <th class="p-4">Action</th>
+                                <th class="p-4">Asset Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-medium text-gray-700">
+                            {% for log in logs_data %}
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                                <td class="p-4 pl-6 font-mono text-xs text-gray-500">{{ log.timestamp_str }}</td>
+                                <td class="p-4">
+                                    {% if log.action_type == 'Logged In' %}
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">{{
+                                        log.action_type }}</span>
+                                    {% elif log.action_type == 'Uploaded File' %}
+                                    <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">{{
+                                        log.action_type }}</span>
+                                    {% elif log.action_type == 'Downloaded File' %}
+                                    <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">{{
+                                        log.action_type }}</span>
+                                    {% elif log.action_type == 'Viewed File' %}
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">{{
+                                        log.action_type }}</span>
+                                    {% else %}
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-bold">{{
+                                        log.action_type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-4 flex items-center gap-3">
+                                    {% if log.filename %}
+                                    <i class="fa-solid fa-file-shield text-gray-400"></i>
+                                    {{ log.filename }}
+                                    {% else %}
+                                    <span class="text-gray-400 italic">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="p-8 text-center text-gray-500 font-medium">No activities recorded
+                                    yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {% elif active_page == 'vault' %}
+
+            <!-- Inventory Structure Tabs -->
+            <div class="mb-4 flex gap-4 border-b border-gray-200">
+                <button onclick="switchVaultTab('vault-tab')" id="btn-vault-tab"
+                    class="px-4 py-2 text-sm font-bold text-green-600 border-b-2 border-green-600 uppercase tracking-wide transition">Vault
+                    Downloads</button>
+                <button onclick="switchVaultTab('chat-tab')" id="btn-chat-tab"
+                    class="px-4 py-2 text-sm font-bold text-gray-500 hover:text-green-600 uppercase tracking-wide transition">Chat
+                    Downloads</button>
+            </div>
+
+            <!-- Vault Tab -->
+            <div id="vault-tab" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden block">
+                <div class="p-6 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-extrabold text-gray-900 tracking-wide uppercase">Encrypted Local Vault</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-white text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                <th class="p-4 pl-6">Asset Reference</th>
+                                <th class="p-4">Size</th>
+                                <th class="p-4">Upload Date</th>
+                                <th class="p-4 pr-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-medium text-gray-700">
+                            {% for obj in vault_files %}
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                                <td class="p-4 pl-6 flex items-center gap-3">
+                                    <i class="fa-solid fa-file-shield text-green-500 text-lg"></i>
+                                    {{ obj.Key | replace('.enc', '') }}
+                                </td>
+                                <td class="p-4">
+                                    <div class="flex flex-col text-xs font-mono">
+                                        <span class="text-gray-400">Orig: {{ obj.OrigSize }}</span>
+                                        <span class="text-green-600 font-bold">Enc/Zip: {{ obj.CompSize }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 font-mono text-xs text-gray-500">{{ obj.LastModified }}</td>
+                                <td class="p-4 pr-6 text-right flex justify-end gap-2">
+                                    <a href="/view/{{ obj.Key }}" target="_blank" onclick="mockDecrypt(event, true)"
+                                        class="text-blue-500 hover:text-blue-700 transition p-2 border border-blue-200 rounded bg-blue-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-eye"></i> View
+                                    </a>
+                                    <a href="/download/{{ obj.Key }}" onclick="mockDecrypt(event, false)"
+                                        class="text-green-600 hover:text-green-800 transition p-2 border border-green-200 rounded bg-green-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-download"></i> Download
+                                    </a>
+                                    <a href="/move_to_bin/{{ obj.Key }}" onclick="confirmBin(event)"
+                                        class="text-red-600 hover:text-red-800 transition p-2 border border-red-200 rounded bg-red-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="p-12 text-center text-gray-400 leading-10">
+                                    <i class="fa-solid fa-folder-open text-4xl mb-4 block mx-auto"></i>
+                                    <p class="font-bold">No Authorized Inventory Exists</p>
+                                    <p class="text-xs">S3 Bucket is empty or could not be reached.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chat Tab -->
+            <div id="chat-tab" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+                <div class="p-6 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-extrabold text-gray-900 tracking-wide uppercase">Chat Shared Files</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr
+                                class="bg-white text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-200">
+                                <th class="p-4 pl-6">Filename</th>
+                                <th class="p-4">Sender</th>
+                                <th class="p-4">Size</th>
+                                <th class="p-4">Upload Date</th>
+                                <th class="p-4 pr-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-medium text-gray-700">
+                            {% for obj in chat_files %}
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                                <td class="p-4 pl-6 flex items-center gap-3">
+                                    <i class="fa-solid {% if obj.source_type == 'vault_shared' %}fa-cloud text-purple-500{% else %}fa-hard-drive text-blue-500{% endif %} text-lg"
+                                        title="{{ obj.source_type }}"></i>
+                                    {{ obj.filename }}
+                                </td>
+                                <td class="p-4 text-xs text-gray-500 font-bold">{{ obj.sender }}</td>
+                                <td class="p-4">
+                                    <div class="flex flex-col text-xs font-mono">
+                                        <span class="text-gray-400">Orig: {{ obj.OrigSize }}</span>
+                                        <span class="text-green-600 font-bold">Enc/Zip: {{ obj.CompSize }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 font-mono text-xs text-gray-500">{{ obj.LastModified }}</td>
+                                <td class="p-4 pr-6 text-right flex justify-end gap-2">
+                                    <a href="/download_chat/{{ obj.id }}" onclick="mockDecrypt(event, false)"
+                                        class="text-green-600 hover:text-green-800 transition p-2 border border-green-200 rounded bg-green-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-download"></i> Decrypt & Download
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="p-12 text-center text-gray-400 leading-10">
+                                    <i class="fa-solid fa-comments text-4xl mb-4 block mx-auto"></i>
+                                    <p class="font-bold">No Chat Files Found</p>
+                                    <p class="text-xs">Files shared in chat will appear here.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <script>
+                function switchVaultTab(tabId) {
+                    document.getElementById('vault-tab').classList.add('hidden');
+                    document.getElementById('vault-tab').classList.remove('block');
+                    document.getElementById('chat-tab').classList.add('hidden');
+                    document.getElementById('chat-tab').classList.remove('block');
+
+                    document.getElementById('btn-vault-tab').className = "px-4 py-2 text-sm font-bold text-gray-500 hover:text-green-600 uppercase tracking-wide transition";
+                    document.getElementById('btn-chat-tab').className = "px-4 py-2 text-sm font-bold text-gray-500 hover:text-green-600 uppercase tracking-wide transition";
+
+                    document.getElementById(tabId).classList.add('block');
+                    document.getElementById(tabId).classList.remove('hidden');
+                    document.getElementById('btn-' + tabId).className = "px-4 py-2 text-sm font-bold text-green-600 border-b-2 border-green-600 uppercase tracking-wide transition";
+                }
+            </script>
+
+            {% elif active_page == 'bin' %}
+            <!-- Recycle Bin -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-200 bg-red-50 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-red-900 tracking-wide uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-trash text-red-500"></i> Recycle Bin
+                        </h2>
+                        <p class="text-xs font-bold text-red-400 tracking-widest uppercase mt-1">Files automatically
+                            erased after 30 days</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200">
+                                <th class="p-4 font-bold text-gray-500 text-xs uppercase tracking-widest">Asset ID</th>
+                                <th class="p-4 font-bold text-gray-500 text-xs uppercase tracking-widest">Payload Vol
+                                </th>
+                                <th class="p-4 font-bold text-gray-500 text-xs uppercase tracking-widest">Deleted On
+                                </th>
+                                <th class="p-4 font-bold text-gray-500 text-xs uppercase tracking-widest text-center">
+                                    Auto-Erase In</th>
+                                <th
+                                    class="p-4 font-bold text-gray-500 text-xs uppercase tracking-widest text-right pr-6">
+                                    Recovery Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            {% for obj in bin_files %}
+                            <tr class="hover:bg-red-50 transition duration-150">
+                                <td class="p-4 flex items-center gap-3">
+                                    <span class="p-2 bg-red-100 rounded-lg text-red-600">
+                                        <i class="fa-solid fa-file-shield"></i>
+                                    </span>
+                                    <span class="font-bold text-gray-900">{{ obj.Key }}</span>
+                                </td>
+                                <td class="p-4 font-mono text-xs text-gray-500">{{ obj.Size }}</td>
+                                <td class="p-4 font-mono text-xs text-gray-500">{{ obj.DeletedOn }}</td>
+                                <td
+                                    class="p-4 font-mono text-xs font-bold text-center {% if obj.DaysRemaining <= 5 %}text-red-600{% else %}text-orange-500{% endif %}">
+                                    {{ obj.DaysRemaining }} Days
+                                </td>
+                                <td class="p-4 pr-6 text-right flex justify-end gap-2">
+                                    <a href="/restore/{{ obj.Key }}"
+                                        class="text-blue-600 hover:text-blue-800 transition p-2 border border-blue-200 rounded bg-blue-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> Restore
+                                    </a>
+                                    <a href="/delete_permanent/{{ obj.Key }}" onclick="confirmEradicate(event)"
+                                        class="text-red-600 hover:text-red-800 transition p-2 border border-red-200 rounded bg-red-50 font-bold text-xs flex items-center gap-1">
+                                        <i class="fa-solid fa-fire"></i> Eradicate
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5"
+                                    class="p-8 text-center text-gray-400 font-bold text-sm tracking-widest uppercase">
+                                    <i class="fa-regular fa-folder-open block text-3xl mb-2 text-gray-300"></i>
+                                    Recycle Bin is Empty
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% elif active_page == 'chat' %}
+            <!-- Chat Interface -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex"
+                style="height: 70vh;">
+                <!-- Left Pane: Channels -->
+                <div class="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50">
+                    <div class="p-4 border-b border-gray-200 bg-white">
+                        <h2 class="text-md font-extrabold text-gray-900 uppercase">Communications</h2>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                        {% for channel in channels %}
+                        <div class="p-4 border-b border-gray-200 hover:bg-gray-100 cursor-pointer transition flex items-center gap-3"
+                            onclick="loadChat('{{ channel.id }}', '{{ channel.name }}')">
+                            <div class="relative">
+                                <div
+                                    class="h-10 w-10 rounded-full {% if channel.type == 'group' %}bg-green-500{% else %}bg-blue-500{% endif %} flex justify-center items-center text-white font-bold text-sm">
+                                    {% if channel.type == 'group' %}<i class="fa-solid fa-users"></i>{% else %}{{
+                                    channel.name[0] | upper }}{% endif %}
+                                </div>
+                                {% if channel.type == 'private' %}
+                                <div id="status-dot-{{ channel.email | replace('@', '_') | replace('.', '_') }}"
+                                    class="h-3 w-3 rounded-full {% if channel.is_online %}bg-green-500{% else %}bg-gray-400{% endif %} absolute bottom-0 right-0 border-2 border-white">
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-bold text-gray-800 text-sm flex justify-between items-center">
+                                    {{ channel.name }}
+                                    {% if channel.type == 'private' %}
+                                    <span id="status-text-{{ channel.email | replace('@', '_') | replace('.', '_') }}"
+                                        class="text-[9px] font-normal text-gray-500 uppercase tracking-widest">
+                                        {% if channel.is_online %}Online{% else %}Offline{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-xs text-gray-500">{% if channel.type == 'group' %}Team Channel{% else
+                                    %}Direct Message{% endif %}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Right Pane: Message Viewer -->
+                <div class="w-2/3 flex flex-col bg-[#e5ddd5] relative">
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-gray-200 bg-white flex items-center gap-4 shadow-sm z-10"
+                        id="chat-header" style="display: none;">
+                        <h2 class="font-bold text-gray-900" id="chat-title">Select a chat</h2>
+                    </div>
+
+                    <!-- Chat Messages Area -->
+                    <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-4" id="chat-messages"
+                        style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-repeat: repeat; opacity: 0.9;">
+                        <!-- Messages go here dynamically -->
+                        <div class="text-center mt-10 text-sm text-gray-500 bg-white/80 w-fit mx-auto px-4 py-2 rounded-full font-bold shadow-sm"
+                            id="chat-placeholder">
+                            Select a channel from the left to start messaging end-to-end.
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-2 bg-[#e5ddd5]" id="typing-indicator" style="display: none;">
+                        <span
+                            class="text-xs text-gray-500 italic bg-white/80 px-3 py-1 rounded-full shadow-sm text-green-700 font-bold animate-pulse">Someone
+                            is typing...</span>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="p-4 bg-gray-100 border-t border-gray-200 flex gap-2" id="chat-input-area"
+                        style="display: none;">
+                        <input type="file" id="chat-file-input" style="display: none;" onchange="uploadChatFile(event)">
+
+                        <!-- Upload from Device -->
+                        <button onclick="document.getElementById('chat-file-input').click()"
+                            class="bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg h-12 px-4 flex items-center justify-center transition shadow-sm font-bold text-xs gap-2"
+                            title="Upload from Device">
+                            <i class="fa-solid fa-hard-drive"></i> <span class="hidden md:inline">Device</span>
+                        </button>
+
+                        <!-- Share from Vault -->
+                        <button onclick="openShareVaultModal()"
+                            class="bg-purple-100 hover:bg-purple-200 text-purple-600 rounded-lg h-12 px-4 flex items-center justify-center transition shadow-sm font-bold text-xs gap-2"
+                            title="Share from Vault">
+                            <i class="fa-solid fa-cloud"></i> <span class="hidden md:inline">Vault</span>
+                        </button>
+
+                        <input type="text" id="chat-input"
+                            class="flex-1 bg-white border border-gray-300 rounded-full px-6 py-3 text-sm focus:outline-none focus:border-green-500"
+                            placeholder="Type a message..." onkeypress="handleKeyPress(event)"
+                            oninput="handleInputTyping()">
+                        <button onclick="sendMessage()"
+                            class="bg-green-600 hover:bg-green-700 text-white rounded-full h-12 w-12 flex items-center justify-center transition shadow-md">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+                function loadChat(channelId, channelName) {
+                    const placeholder = document.getElementById('chat-placeholder');
+                    if (placeholder) placeholder.style.display = 'none';
+
+                    document.getElementById('chat-header').style.display = 'flex';
+                    document.getElementById('chat-input-area').style.display = 'flex';
+                    document.getElementById('chat-title').innerText = channelName;
+
+                    const messagesContainer = document.getElementById('chat-messages');
+                    messagesContainer.innerHTML = ''; // Clear
+
+                    if (currentRoom) {
+                        // socket.emit('leave', {room: currentRoom});
+                    }
+
+                    currentRoom = channelId;
+                    socket.emit('join', { room: channelId });
+
+                    // Fetch History via API
+                    fetch('/api/chat_history/' + channelId)
+                        .then(response => response.json())
+                        .then(data => {
+                            data.forEach(msg => appendMessage(msg));
+                            scrollToBottom();
+                        });
+                }
+
+                function appendMessage(msg) {
+                    const messagesContainer = document.getElementById('chat-messages');
+                    const isSelf = msg.sender_email === userEmail;
+
+                    const wrapDiv = document.createElement('div');
+                    wrapDiv.className = `flex ${isSelf ? 'justify-end' : 'justify-start'}`;
+
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `max-w-xs md:max-w-md px-4 py-2 rounded-lg shadow-sm relative ${isSelf ? 'bg-[#dcf8c6] text-gray-900 rounded-tr-none' : 'bg-white text-gray-900 rounded-tl-none'}`;
+
+                    const nameSpan = document.createElement('div');
+                    nameSpan.className = `text-[10px] font-bold mb-1 ${isSelf ? 'text-green-600' : 'text-blue-500'}`;
+                    nameSpan.innerText = isSelf ? 'You' : msg.sender_name;
+
+                    const textSpan = document.createElement('div');
+                    textSpan.className = 'text-sm mb-3';
+                    textSpan.innerText = msg.content;
+
+                    const timeSpan = document.createElement('div');
+                    timeSpan.className = 'text-[9px] text-gray-400 absolute bottom-1 right-2 text-right';
+                    timeSpan.innerText = msg.timestamp_str;
+
+                    msgDiv.appendChild(nameSpan);
+                    msgDiv.appendChild(textSpan);
+                    msgDiv.appendChild(timeSpan);
+                    wrapDiv.appendChild(msgDiv);
+
+                    messagesContainer.appendChild(wrapDiv);
+                }
+
+                function sendMessage() {
+                    const input = document.getElementById('chat-input');
+                    const text = input.value.trim();
+                    if (text && currentRoom) {
+                        socket.emit('send_message', { room: currentRoom, message: text });
+                        input.value = '';
+                    }
+                }
+
+                function uploadChatFile(e) {
+                    const file = e.target.files[0];
+                    if (!file || !currentRoom) return;
+
+                    const formData = new FormData();
+                    formData.append('myFile', file);
+                    formData.append('channel_id', currentRoom);
+
+                    fetch('/chat_upload', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                socket.emit('send_message', { room: currentRoom, message: `📁 Shared a file: ${file.name}` });
+                            } else {
+                                Swal.fire('Error', data.error || 'Upload failed', 'error');
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Upload Error:', err);
+                            Swal.fire('Error', 'An error occurred during upload', 'error');
+                        });
+
+                    e.target.value = ''; // Reset input
+                }
+
+                socket.on('file_shared', function (data) {
+                    if (data.sender_name !== "{{ user.username }}") {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'New File Received',
+                            text: `${data.sender_name} shared a file with you. Check your Chat Downloads.`,
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
+                });
+
+                function handleKeyPress(e) {
+                    if (e.key === 'Enter') {
+                        sendMessage();
+                    }
+                }
+
+                function scrollToBottom() {
+                    const c = document.getElementById('chat-messages');
+                    c.scrollTop = c.scrollHeight;
+                }
+            </script>
+            {% endif %}
+
+        </div>
+    </main>
+
+    <!-- Upload Modal -->
+    <dialog id="uploadModal" class="rounded-xl shadow-2xl p-0 w-full max-w-md bg-white border-0">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-900">Secure Asset Ingest</h3>
+            <button onclick="document.getElementById('uploadModal').close()" class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="p-6 space-y-4" id="uploadForm"
+            onsubmit="handleUpload(event)">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Select File to Encrypt</label>
+                <input type="file" name="myFile" required
+                    class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition cursor-pointer">
+            </div>
+            <div class="pt-4 flex gap-3">
+                <button type="submit"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition shadow">Encrypt
+                    & Upload</button>
+                <button type="button" onclick="document.getElementById('uploadModal').close()"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-lg transition">Cancel</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Share Vault File Modal -->
+    <dialog id="shareVaultModal" class="rounded-xl shadow-2xl p-0 w-full max-w-lg bg-white border-0">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-purple-50 rounded-t-xl">
+            <h3 class="text-lg font-bold text-purple-900 flex items-center gap-2"><i class="fa-solid fa-cloud"></i>
+                Share from Vault</h3>
+            <button onclick="document.getElementById('shareVaultModal').close()"
+                class="text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-gray-600 mb-4 font-medium tracking-wide">Select an encrypted file from your Secure
+                Vault to share directly to this chat channel.</p>
+            <div id="vault-files-spinner" class="text-center py-8 hidden">
+                <i class="fa-solid fa-circle-notch fa-spin text-purple-500 text-3xl"></i>
+            </div>
+            <div id="vault-files-list" class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                <!-- Data populated here -->
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        function openShareVaultModal() {
+            if (!currentRoom) {
+                Swal.fire('Error', 'Please select a chat channel first.', 'error');
+                return;
+            }
+            const modal = document.getElementById('shareVaultModal');
+            modal.showModal();
+            const list = document.getElementById('vault-files-list');
+            const spinner = document.getElementById('vault-files-spinner');
+
+            list.innerHTML = '';
+            spinner.classList.remove('hidden');
+
+            fetch('/api/my_vault_files')
+                .then(res => res.json())
+                .then(data => {
+                    spinner.classList.add('hidden');
+                    if (data.length === 0) {
+                        list.innerHTML = '<p class="text-center text-sm text-gray-500 py-4 italic">No files available in your Vault.</p>';
+                        return;
+                    }
+                    data.forEach(file => {
+                        const div = document.createElement('div');
+                        div.className = "flex justify-between items-center p-3 border border-gray-200 rounded-lg hover:bg-purple-50 transition cursor-pointer";
+                        div.innerHTML = `
+                            <div class="flex items-center gap-3 overflow-hidden">
+                                <i class="fa-solid fa-file-shield text-purple-500 text-lg flex-shrink-0"></i>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-sm text-gray-800 truncate">${file.filename}</p>
+                                    <p class="text-[10px] text-gray-500 flex gap-2 tracking-widest font-mono">
+                                        <span>Orig: ${file.orig_size}</span> | <span class="text-green-600 font-bold">Zip: ${file.comp_size}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <button onclick="submitShareVault('${file.id}')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded text-xs transition ml-2 flex-shrink-0">
+                                Share
+                            </button>
+                        `;
+                        list.appendChild(div);
+                    });
+                })
+                .catch(err => {
+                    spinner.classList.add('hidden');
+                    list.innerHTML = '<p class="text-center text-red-500 text-sm">Error loading files.</p>';
+                });
+        }
+
+        function submitShareVault(fileId) {
+            fetch('/api/share_vault_file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_id: fileId, channel_id: currentRoom })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('shareVaultModal').close();
+                        socket.emit('send_message', { room: currentRoom, message: `☁️ Shared a Vault File: ${data.filename}` });
+                    } else {
+                        Swal.fire('Error', data.error || 'Share failed', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    Swal.fire('Error', 'An unexpected error occurred.', 'error');
+                });
+        }
+
+        // Central Zone Drag & Drop Handlers
+        function handleCentralDrop(event, isInput = false) {
+            event.preventDefault();
+            const dropZone = document.getElementById('drag-drop-zone');
+            if (dropZone) dropZone.classList.remove('border-green-500', 'bg-green-50/50');
+
+            let files;
+            if (isInput) {
+                files = event.target.files;
+            } else {
+                files = event.dataTransfer.files;
+            }
+
+            if (!files || files.length === 0) return;
+            const file = files[0];
+
+            // Bridging into the showCyberPopup Ecosystem
+            // We pass a mock "event" object that `showCyberPopup` thinks is a standard form submission.
+            // When `showCyberPopup` fires `event.onComplete()`, it triggers the raw XHR upload logic to start feeding it data.
+            const pseudoEvent = {
+                isAjax: true,
+                target: {},
+                onComplete: () => {
+                    const formData = new FormData();
+                    formData.append('myFile', file);
+
+                    const pBar = document.getElementById('progress-bar');
+                    const pText = document.getElementById('progress-text');
+                    const tWindow = document.getElementById('terminal-window');
+
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/upload', true);
+
+                    xhr.upload.onprogress = function (e) {
+                        if (e.lengthComputable && pBar && pText) {
+                            // Scale down by 0.99 so the bar doesn't hit 100% until the HTTP 200 fires
+                            const percentComplete = Math.floor((e.loaded / e.total) * 99);
+                            pBar.style.width = percentComplete + '%';
+                            pText.innerText = percentComplete + '%';
+                        }
+                    };
+
+                    xhr.onload = function () {
+                        if (xhr.status === 200) {
+                            if (pBar) pBar.style.width = '100%';
+                            if (pText) pText.innerText = '100%';
+                            setTimeout(() => window.location.reload(), 1200);
+                        } else {
+                            if (tWindow) {
+                                const errLog = document.createElement('div');
+                                errLog.className = "text-red-500 font-bold mt-3 text-sm";
+                                errLog.innerText = "[SYSTEM ERROR] INGESTION FAILED.";
+                                tWindow.appendChild(errLog);
+                                tWindow.scrollTop = tWindow.scrollHeight;
+                            }
+                            setTimeout(() => window.location.reload(), 3000);
+                        }
+                    };
+
+                    xhr.onerror = function () {
+                        window.location.reload();
+                    };
+
+                    xhr.send(formData);
+                }
+            };
+
+            showCyberPopup(true, pseudoEvent, null, false);
+        }
+
+        function showCyberPopup(isUpload, formEvent = null, dlLink = null, isNewTab = false, externalWindow = null) {
+            if (formEvent) {
+                document.getElementById('uploadModal').close();
+            }
+
+            const headerText = isUpload ? 'SECURE INGEST PROTOCOL' : 'DECRYPTION PROTOCOL';
+            const statusText = isUpload ? 'ENCRYPTION ACTIVE' : 'DECRYPTION ACTIVE';
+
+            const logs = isUpload ? [
+                "Initializing AES-256 cipher block...",
+                "Reading binary file stream into memory...",
+                "Generating cryptographic authentication tag...",
+                "Processing plaintext buffers (multipart)...",
+                "Serializing secure binary object...",
+                "Committing to local secure vault..."
+            ] : [
+                "Validating operational identity...",
+                "Fetching encrypted blob from secure vault...",
+                "Authenticating AES-GCM data tag...",
+                "Decrypting ciphertext stream to memory...",
+                "Verifying file integrity checksum...",
+                "Preparing secure response stream..."
+            ];
+
+            let htmlContent = `
+                <div class="text-left font-sans bg-white border-2 border-green-600 rounded-xl overflow-hidden shadow-2xl relative">
+                    <!-- Header -->
+                    <div class="bg-green-700 text-white p-4 flex justify-between items-center border-b border-green-800">
+                        <div class="flex items-center gap-3 font-bold tracking-widest text-sm">
+                            <i class="fa-solid fa-lock"></i> ${headerText}
+                        </div>
+                    </div>
+                    
+                    <div class="p-8">
+                        <div class="flex justify-between items-end mb-2">
+                            <h1 class="text-6xl font-extrabold text-green-700" id="progress-text">0%</h1>
+                            <span class="text-xs font-bold text-green-600 tracking-widest uppercase animate-pulse">${statusText}</span>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-green-100 rounded-full h-3 flex overflow-hidden border border-green-200">
+                            <div class="bg-green-500 h-3 rounded-full transition-all duration-200" style="width: 0%" id="progress-bar"></div>
+                        </div>
+
+                        <!-- Terminal Window -->
+                        <div class="mt-8 bg-gray-50 border border-green-200 rounded-lg p-4 h-48 overflow-y-auto font-mono text-xs flex flex-col gap-2" id="terminal-window">
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            Swal.fire({
+                html: htmlContent,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                background: 'transparent',
+                customClass: { popup: 'p-0 shadow-none' },
+                didOpen: () => {
+                    const progressBar = document.getElementById('progress-bar');
+                    const progressText = document.getElementById('progress-text');
+                    const terminalWindow = document.getElementById('terminal-window');
+
+                    let progress = 0;
+                    let logIndex = 0;
+
+                    const addLog = () => {
+                        if (logIndex < logs.length) {
+                            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+                            const logLine = document.createElement('div');
+                            logLine.className = "text-gray-600 flex gap-3 opacity-0 transition-opacity duration-300";
+                            logLine.innerHTML = `<span class="text-green-500 font-bold">[${time}]</span> <span>${logs[logIndex]}</span>`;
+                            terminalWindow.appendChild(logLine);
+
+                            // Scroll to bottom
+                            terminalWindow.scrollTop = terminalWindow.scrollHeight;
+
+                            // Fade in
+                            setTimeout(() => logLine.classList.remove('opacity-0'), 50);
+
+                            logIndex++;
+                        }
+                    };
+
+                    addLog();
+
+                    const interval = setInterval(() => {
+                        progress += Math.floor(Math.random() * 10) + 2;
+                        if (progress >= 100) progress = 100;
+
+                        // Only update if formEvent.isAjax is false, otherwise onComplete will handle it
+                        if (!formEvent || !formEvent.isAjax) {
+                            progressBar.style.width = progress + '%';
+                            progressText.innerText = progress + '%';
+                        }
+
+
+                        if (Math.random() > 0.6) addLog();
+
+                        if (progress === 100) {
+                            clearInterval(interval);
+                            while (logIndex < logs.length) addLog(); // Finish logs
+
+                            const finalLog = document.createElement('div');
+                            finalLog.className = "text-green-600 font-bold mt-3 text-sm";
+                            finalLog.innerText = isUpload ? "[SYSTEM] ENCRYPTION SUCCESSFUL" : "[SYSTEM] DECRYPTION SUCCESSFUL";
+                            terminalWindow.appendChild(finalLog);
+                            terminalWindow.scrollTop = terminalWindow.scrollHeight;
+
+                            setTimeout(() => {
+                                if (formEvent && !formEvent.isAjax) {
+                                    formEvent.target.submit();
+                                } else if (dlLink) {
+                                    Swal.close();
+                                    if (isNewTab && externalWindow) {
+                                        externalWindow.location.href = dlLink;
+                                    } else {
+                                        window.location.href = dlLink;
+                                    }
+                                } else if (formEvent && formEvent.isAjax && formEvent.onComplete) {
+                                    formEvent.onComplete();
+                                }
+                            }, 1000);
+                        }
+                    }, 120);
+                }
+            });
+        }
+
+        function handleUpload(event) {
+            event.preventDefault();
+            showCyberPopup(true, event, null, false);
+        }
+
+        function mockDecrypt(event, isNewTab) {
+            event.preventDefault();
+            const url = event.currentTarget.href;
+
+            // Bypass popup blocker by opening window synchronously before async operation
+            let newWindow = null;
+            if (isNewTab) {
+                newWindow = window.open('', '_blank');
+                newWindow.document.write('<body><h2 style="font-family:sans-serif;color:#15803d;padding:20px;">Decrypting... Please wait.</h2></body>');
+            }
+
+            showCyberPopup(false, null, url, isNewTab, newWindow);
+        }
+
+        function handleRotateKey(e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Force Rotate Key?',
+                text: "This will invalidate the current key. Users will not be able to access existing files without the old database entry!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, rotate it!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Rotating...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading() }
+                    });
+                    e.target.submit();
+                }
+            })
+        }
+
+        function confirmBin(e) {
+            e.preventDefault();
+            const url = e.currentTarget.href;
+            Swal.fire({
+                title: 'Move to Bin?',
+                text: "The file will be available in the Recycle Bin for 30 days.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#eab308',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Move to Bin'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = url;
+                }
+            })
+        }
+
+        function confirmEradicate(e) {
+            e.preventDefault();
+            const url = e.currentTarget.href;
+            Swal.fire({
+                title: 'Eradicate Forever?',
+                text: "This process wipes the binary securely. It cannot be undone!",
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Destroy Data'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = url;
+                }
+            })
+        }
+
+        function handleRevoke(e) {
+            e.preventDefault();
+            Swal.fire({
+                title: 'Revoke Access?',
+                text: "This process will delete the identity AND auto-rotate the active keys!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Revoke Identity'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Revoking & Rotating...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading() }
+                    });
+                    e.target.submit();
+                }
+            })
+        }
+
+        // Direct drag and drop UI functionality
+        const dropZone = document.getElementById('drag-drop-zone');
+        if (dropZone) {
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-green-500', 'bg-green-50/50');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-green-500', 'bg-green-50/50');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-green-500', 'bg-green-50/50');
+                if (e.dataTransfer.files.length) {
+                    handleDirectUpload(e.dataTransfer.files);
+                }
+            });
+        }
+
+        function handleDirectUpload(files) {
+            if (!files.length) return;
+            const file = files[0];
+
+            const pCont = document.getElementById('upload-progress-container');
+            const pBar = document.getElementById('upload-progress-bar');
+            const pText = document.getElementById('upload-percent');
+
+            pCont.classList.remove('hidden');
+            pBar.style.width = '0%';
+            pText.innerText = '0%';
+
+            const formData = new FormData();
+            formData.append('myFile', file);
+
+            // Setup XMLHttpRequest for Progress Tracking
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = function (e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    pBar.style.width = percentComplete + '%';
+                    pText.innerText = percentComplete + '%';
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Vault Sync Complete',
+                        text: `Extreme LZMA applied. File Encrypted & Saved.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    pCont.classList.add('hidden');
+                    Swal.fire('Upload Failed', 'There was a critical error securing your file.', 'error');
+                }
+            };
+
+            xhr.onerror = function () {
+                pCont.classList.add('hidden');
+                Swal.fire('Upload Failed', 'Network connection interrupted.', 'error');
+            };
+
+            xhr.send(formData);
+        }
+    </script>
+
+    <!-- Global Socket.IO -->
+    {% if 'user_email' in session %}
+    <script>
+        const socket = io();
+        const userEmail = "{{ session['user_email'] }}";
+        let currentRoom = null;
+        let typingTimer;
+
+        socket.emit('join_user_room', { user_email: userEmail });
+
+        socket.on('approval_status', function (data) {
+            if (data.status === 'approved') {
+                Swal.fire({
+                    title: 'Access Granted!',
+                    text: 'Your dashboard is now active. Refreshing...',
+                    icon: 'success',
+                    timer: 3000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else if (data.status === 'denied') {
+                Swal.fire('Request Denied', 'Your request to join the group was denied.', 'error');
+            }
+        });
+
+        socket.on('member_count_updated', function (data) {
+            const badge = document.getElementById('members-count-badge');
+            if (badge) {
+                badge.innerText = data.new_count;
+            }
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'New member joined the group!',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        });
+
+        socket.on('new_join_request', function (data) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: 'Attention Owner',
+                text: data.message,
+                showConfirmButton: false,
+                timer: 5000,
+                timerProgressBar: true
+            });
+            // Highlight pending requests tab if on dashboard
+            const btn = document.getElementById('btn-vault-tab');
+            if (btn) {
+                // Refreshing is easiest, or just alert owner to refresh
+            }
+        });
+
+        socket.on('receive_message', function (msg) {
+            if (currentRoom && msg.channel_id === currentRoom) {
+                if (typeof appendMessage === 'function') {
+                    appendMessage(msg);
+                    scrollToBottom();
+                }
+            } else {
+                // Show red dot on Communication tab
+                const dot = document.getElementById('chat-alert-dot');
+                if (dot) dot.classList.remove('hidden');
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: `New Message!`,
+                    text: `${msg.sender_name} sent a message.`,
+                    showConfirmButton: false,
+                    timer: 4000
+                });
+            }
+        });
+
+        socket.on('user_typing', function (data) {
+            if (data.room === currentRoom && data.email !== userEmail) {
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) {
+                    indicator.style.display = data.typing ? 'block' : 'none';
+                    if (data.typing) scrollToBottom();
+                }
+            }
+        });
+
+        socket.on('status_change', function (data) {
+            const sidStr = data.email.replace(/[@.]/g, '_');
+            const statusDot = document.getElementById('status-dot-' + sidStr);
+            const statusText = document.getElementById('status-text-' + sidStr);
+            if (statusDot && statusText) {
+                if (data.status === 'online') {
+                    statusDot.className = "h-3 w-3 rounded-full bg-green-500 absolute bottom-0 right-0 border-2 border-white";
+                    statusText.innerText = "Online";
+                } else {
+                    statusDot.className = "h-3 w-3 rounded-full bg-gray-400 absolute bottom-0 right-0 border-2 border-white";
+                    statusText.innerText = "Offline";
+                }
+            }
+        });
+
+        socket.on('key_rotated', function () {
+            Swal.fire({
+                title: 'Security Alert',
+                text: 'Team key has been updated due to member rotation.',
+                icon: 'warning',
+                confirmButtonColor: '#eab308',
+                confirmButtonText: 'Understood'
+            }).then(() => {
+                window.location.reload();
+            });
+        });
+
+        function handleInputTyping() {
+            if (currentRoom) {
+                socket.emit('typing', { room: currentRoom, typing: true });
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => {
+                    socket.emit('typing', { room: currentRoom, typing: false });
+                }, 2000);
+            }
+        }
+    </script>
+    {% endif %}
+
+    <script>
+        function toggleAllCheckboxes(source) {
+            const checkboxes = document.querySelectorAll('.file-checkbox');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+            toggleDeleteButton();
+        }
+
+        function toggleDeleteButton() {
+            const anyChecked = document.querySelectorAll('.file-checkbox:checked').length > 0;
+            const btn = document.getElementById('bulkDeleteBtn');
+            if (anyChecked) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        function deleteSelectedFiles() {
+            const checked = document.querySelectorAll('.file-checkbox:checked');
+            if (checked.length === 0) return;
+
+            const fileIds = Array.from(checked).map(cb => cb.value);
+
+            Swal.fire({
+                title: `Delete ${fileIds.length} Assets?`,
+                text: "This action will permanently remove these files from the secure cloud.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, eradicate them!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Eradicating...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    fetch('/delete_bulk', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ file_ids: fileIds })
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: 'The selected assets have been obliterated.',
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                }).then(() => window.location.reload());
+                            } else {
+                                Swal.fire('Error', data.error || 'Failed to delete some assets.', 'error');
+                            }
+                        })
+                        .catch(e => {
+                            console.error(e);
+                            Swal.fire('Error', 'Network request failed.', 'error');
+                        });
+                }
+            });
+        }
+
+        function confirmLeaveGroup() {
+            Swal.fire({
+                title: 'Leave Group?',
+                text: "You will immediately lose access to all files and the encryption key will rotate.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Yes, leave now!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Disconnecting...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+                    document.getElementById('leaveGroupForm').submit();
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditor Dashboard - Secure Entity Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FFFFFF;
+        }
+
+        /* Clean White Background */
+
+        /* Custom scrollbar for log area */
+        .log-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .log-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .log-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- Sidebar (Forest Green Theme) -->
+    <aside class="w-64 bg-green-900 text-white flex flex-col justify-between shrink-0 h-full">
+        <div>
+            <!-- Branding -->
+            <div class="p-6 border-b border-green-800">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="bg-blue-500 text-white rounded focus:outline-none h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-wide block">TPA Portal</span>
+                        <span class="text-xs text-blue-300 font-semibold tracking-widest uppercase">Auditor
+                            Access</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="p-4 space-y-2 mt-4 text-sm font-medium">
+                <a href="/tpa_dashboard"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Dashboard' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-table-columns w-5 text-center"></i> Dashboard
+                </a>
+                <a href="/auditor/requests"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Audit Requests' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-file-invoice w-5 text-center"></i> Audit Requests
+                </a>
+                <a href="/auditor/verify" onclick="showIntegrityScan(event)"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Integrity Check' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-shield-halved w-5 text-center"></i> Integrity Check
+                </a>
+                <a href="/auditor/logs"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Audit Logs' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> Audit Logs
+                </a>
+                <a href="/auditor/settings"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition mt-8 {% if active_page == 'Settings' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-gear w-5 text-center"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- User Info / Logout -->
+        <div class="p-4 border-t border-green-800">
+            <div class="flex items-center gap-3 p-3 bg-green-800 rounded-lg mb-4">
+                <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold">
+                    <i class="fa-regular fa-user"></i>
+                </div>
+                <div>
+                    <span class="block text-sm font-bold truncate w-32">{{ user.username }}</span>
+                    <span class="block text-xs text-green-300 font-bold">Senior Auditor</span>
+                </div>
+            </div>
+            <a href="/logout"
+                class="block w-full text-center bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 font-bold text-sm tracking-wide py-3 rounded-lg transition">
+                TERMINATE SESSION
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-gray-50/30">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                Swal.fire({
+                    icon: '{{ category }}',
+                    title: '{{ "Notice" }}',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#22c55e',
+                    timer: 3000
+                });
+            });
+        </script>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="p-8 max-w-[1400px] mx-auto w-full space-y-8">
+
+            <!-- Header section -->
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Auditor Dashboard</h1>
+                    <p class="text-gray-500 mt-1">Manage validation workflows and cloud data integrity protocols.</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="exportAuditReport(this)"
+                        class="px-4 py-2 bg-white border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-green-700 hover:text-white transition shadow-sm flex items-center gap-2 text-sm group">
+                        <i class="fa-solid fa-download group-hover:animate-bounce"></i> <span id="exportText">Export
+                            Report</span>
+                    </button>
+                    <button onclick="document.getElementById('newAuditModal').showModal()"
+                        class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-green-700 transition shadow-sm flex items-center gap-2 text-sm">
+                        <i class="fa-solid fa-plus"></i> New Audit
+                    </button>
+                </div>
+            </div>
+
+            <dialog id="newAuditModal" class="p-0 rounded-2xl shadow-2xl border-0 w-full max-w-2xl bg-transparent">
+                <div class="bg-white rounded-2xl overflow-hidden flex flex-col">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-extrabold text-gray-900 text-lg uppercase tracking-wide">Select File for Manual
+                            Audit</h3>
+                        <button onclick="document.getElementById('newAuditModal').close()"
+                            class="text-gray-400 hover:text-red-500 transition">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6 max-h-[60vh] overflow-y-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr
+                                    class="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                                    <th class="p-4">File Name</th>
+                                    <th class="p-4">Owner Email</th>
+                                    <th class="p-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm text-gray-700 divide-y divide-gray-50" id="auditFilesTable">
+                                {% for f in all_cloud_files %}
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="p-4 font-bold text-gray-900">{{ f.filename }}</td>
+                                    <td class="p-4 text-gray-500">{{ f.owner_email }}</td>
+                                    <td class="p-4 text-right">
+                                        <button onclick="triggerManualAudit('{{ f.id }}')"
+                                            class="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded font-bold transition text-xs">
+                                            Trigger Manual Audit
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="p-4 text-center text-gray-500">No files stored in cloud.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </dialog>
+
+            <script>
+                function triggerManualAudit(fileId) {
+                    window.location.href = '/auditor/verify?file_id=' + fileId;
+                }
+
+                function exportAuditReport(btn) {
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Generating...</span>';
+                    btn.disabled = true;
+
+                    // Trigger logical download
+                    window.location.href = '/auditor/export_report';
+
+                    // Revert after expected generation time
+                    setTimeout(() => {
+                        btn.innerHTML = originalHTML;
+                        btn.disabled = false;
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success',
+                            text: 'Audit Summary Exported Successfully!',
+                            timer: 3000,
+                            showConfirmButton: false,
+                            confirmButtonColor: '#22c55e'
+                        });
+                    }, 2000);
+                }
+            </script>
+
+            <!-- Stats Row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Stat Card 1 -->
+                <div
+                    class="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 flex justify-between items-center transition-transform hover:-translate-y-1">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Pending Requests</p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-bold text-gray-900">{{ pending_count }}</span>
+                            <span class="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">+15%
+                                vs last week</span>
+                        </div>
+                    </div>
+                    <div
+                        class="h-12 w-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </div>
+                </div>
+
+                <!-- Stat Card 2 -->
+                <div
+                    class="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 flex justify-between items-center transition-transform hover:-translate-y-1">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Verified Files</p>
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-3xl font-bold text-gray-900">{{ verified_count }}</span>
+                            <span class="text-xs font-semibold text-green-500 bg-green-50 px-2 py-0.5 rounded-full">+4%
+                                total volume</span>
+                        </div>
+                    </div>
+                    <div
+                        class="h-12 w-12 rounded-full bg-green-50 text-green-500 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+
+                <!-- Stat Card 3 -->
+                <div
+                    class="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-gray-100 flex justify-between items-center transition-transform hover:-translate-y-1">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-500 mb-1">Integrity Alerts</p>
+                        <div class="flex items-baseline gap-2">
+                            <span
+                                class="text-3xl font-bold {% if alerts_count > 0 %}text-red-600{% else %}text-gray-900{% endif %}">{{
+                                alerts_count }}</span>
+                            {% if alerts_count > 0 %}
+                            <span class="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">-10%
+                                risk factor</span>
+                            {% else %}
+                            <span
+                                class="text-xs font-semibold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">Secure</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="h-12 w-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Column Layout: Table & Quick Verify -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+
+                <!-- Pending Audits Table (Left, 2 columns wide) -->
+                <div class="xl:col-span-2">
+                    <div class="flex justify-between items-end mb-4">
+                        <h2 class="text-xl font-bold text-gray-900">Pending Audit Requests</h2>
+                        <a href="#" class="text-sm font-semibold text-blue-600 hover:text-blue-800">View All</a>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr
+                                    class="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                                    <th class="p-4 pl-6">Data Owner</th>
+                                    <th class="p-4">File & Size</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4 pr-6 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-sm text-gray-700 divide-y divide-gray-50">
+                                {% for file in dashboard_files %}
+                                <tr class="hover:bg-gray-50/50 transition pr-4">
+                                    <td class="p-4 pl-6">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="w-8 h-8 rounded bg-gray-100 text-gray-600 font-bold flex items-center justify-center text-xs">
+                                                {{ file.owner[:2] }}
+                                            </div>
+                                            <span class="font-bold text-gray-800">{{ file.owner }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="font-bold text-gray-900">{{ file.filename }}</div>
+                                        <div class="text-[11px] text-gray-500 font-mono">{{ file.size }} • {{ file.date
+                                            }}</div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-200">
+                                            Waiting
+                                        </span>
+                                    </td>
+                                    <td class="p-4 pr-6 text-right">
+                                        <button onclick="populateVerify('{{ file.id }}')"
+                                            class="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase tracking-wider transition">
+                                            Start Audit
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="p-8 text-center text-gray-400">No pending validation requests
+                                        found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Quick Verify Column (Right, 1 column wide) -->
+                <div class="xl:col-span-1">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4">Quick Verify</h2>
+
+                    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-6">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Verification Key
+                            (HMAC/TPA)</label>
+                        <div class="relative mb-6">
+                            <input type="text" id="verifyInput" placeholder="sha256:7b9c92...a8e2"
+                                class="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-green-500 focus:border-green-500 block p-3 px-4 font-mono text-sm transition shadow-inner pr-10">
+                            <i class="fa-solid fa-key absolute right-3 top-3.5 text-gray-400"></i>
+                        </div>
+
+                        <div
+                            class="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 p-6 flex flex-col items-center justify-center mb-6 text-center">
+                            <div
+                                class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                                <i class="fa-solid fa-cloud text-xl"></i>
+                            </div>
+                            <h3 class="text-gray-900 font-bold mb-1">Cloud Source Verification</h3>
+                            <p class="text-xs text-gray-500">AWS S3 Instance: secure-audit-v1</p>
+                        </div>
+
+                        <button id="verifyBtn" onclick="runVerification()"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow-[0_4px_14px_0_rgba(22,163,74,0.39)] flex items-center justify-center gap-2 mb-4">
+                            <i class="fa-solid fa-shield-check"></i> Verify Integrity Now
+                        </button>
+
+                        <p class="text-[9px] text-center text-gray-400 font-bold tracking-widest uppercase mt-4 mb-2">
+                            Powered by Blockchain Proof-Of-Integrity</p>
+
+                        <div class="mt-6 border-t border-gray-100 pt-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-semibold text-gray-600">Live Status</span>
+                                <span
+                                    class="text-[10px] font-bold text-green-500 uppercase flex items-center gap-1"><span
+                                        class="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
+                                    Connected</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-1 mb-2">
+                                <div class="bg-green-500 h-1 rounded-full w-full"></div>
+                            </div>
+                            <p class="text-[10px] text-gray-400 italic" id="status-text">Ready for file hash
+                                comparison...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Validation Log (Bottom) -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Integrity Validation Log</h2>
+                <div class="flex gap-4 overflow-x-auto log-scroll pb-4 w-full">
+
+                    {% for log in logs %}
+                    <div class="flex-shrink-0 w-64 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            {% if log.status == 'VALIDATED' %}
+                            <div
+                                class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-sm">VALIDATED</h4>
+                                <p class="text-xs text-gray-500 mt-0.5 truncate w-40">{{ log.filename }} - {{ log.time
+                                    }}</p>
+                            </div>
+                            {% else %}
+                            <div
+                                class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-sm">INTEGRITY GAP</h4>
+                                <p class="text-xs text-gray-500 mt-0.5 truncate w-40">{{ log.filename }} - {{ log.time
+                                    }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div
+                        class="flex-shrink-0 w-64 border border-gray-200 border-dashed rounded-xl bg-gray-50 p-4 text-center">
+                        <p class="text-gray-400 text-sm font-semibold mt-2">No recent validation logs.</p>
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        function populateVerify(fileId) {
+            document.getElementById('verifyInput').value = fileId;
+            document.getElementById('status-text').innerText = "Target loaded. Awaiting verification command...";
+            document.getElementById('verifyInput').classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+            setTimeout(() => {
+                document.getElementById('verifyInput').classList.remove('ring-2', 'ring-blue-500', 'border-blue-500');
+            }, 1000);
+        }
+
+        function runVerification() {
+            const fileId = document.getElementById('verifyInput').value;
+            if (!fileId) {
+                Swal.fire('Notice', 'Please select an Audit Request or enter a verification key first.', 'info');
+                return;
+            }
+
+            const btn = document.getElementById('verifyBtn');
+            const statusText = document.getElementById('status-text');
+
+            // UI Loading state
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing Blockchain Hashes...';
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+            statusText.innerText = "Connecting to AWS S3 & querying database hashes...";
+
+            // API Call
+            fetch('/api/verify_integrity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file_id: fileId })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Verify Integrity Now';
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                    statusText.innerText = data.success ? "Match Confirmed." : "Anomaly Detected.";
+
+                    if (data.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Integrity Validated',
+                            text: data.message,
+                            confirmButtonColor: '#22c55e',
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else if (data.error === "File not found") {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Key',
+                            text: 'No file exists for the provided verification key.',
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Integrity Failure',
+                            text: data.message || data.error,
+                            confirmButtonColor: '#ef4444',
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    }
+                })
+                .catch(e => {
+                    console.error(e);
+                    btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Verify Integrity Now';
+                    btn.classList.remove('opacity-80', 'cursor-not-allowed');
+                    Swal.fire('Error', 'Verification process failed due to a network or server error.', 'error');
+                    statusText.innerText = "System error during validation.";
+                });
+        }
+    </script>
+</body>
+
+</html>

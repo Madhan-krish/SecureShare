@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Requests - Secure Entity Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FFFFFF;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden text-gray-800">
+
+    <!-- Sidebar (Forest Green Theme) -->
+    <aside class="w-64 bg-green-900 text-white flex flex-col justify-between shrink-0 h-full">
+        <div>
+            <!-- Branding -->
+            <div class="p-6 border-b border-green-800">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="bg-blue-500 text-white rounded focus:outline-none h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg tracking-wide block">TPA Portal</span>
+                        <span class="text-xs text-blue-300 font-semibold tracking-widest uppercase">Auditor
+                            Access</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="p-4 space-y-2 mt-4 text-sm font-medium">
+                <a href="/tpa_dashboard"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Dashboard' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-table-columns w-5 text-center"></i> Dashboard
+                </a>
+                <a href="/auditor/requests"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Audit Requests' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-file-invoice w-5 text-center"></i> Audit Requests
+                </a>
+                <a href="/auditor/verify" onclick="showIntegrityScan(event)"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Integrity Check' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-shield-halved w-5 text-center"></i> Integrity Check
+                </a>
+                <a href="/auditor/logs"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition {% if active_page == 'Audit Logs' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-clock-rotate-left w-5 text-center"></i> Audit Logs
+                </a>
+                <a href="/auditor/settings"
+                    class="flex items-center gap-3 px-4 py-3 rounded-lg transition mt-8 {% if active_page == 'Settings' %}bg-green-800 border-l-4 border-green-400 text-white{% else %}text-green-100 hover:bg-green-800 hover:text-white{% endif %}">
+                    <i class="fa-solid fa-gear w-5 text-center"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- User Info / Logout -->
+        <div class="p-4 border-t border-green-800">
+            <div class="flex items-center gap-3 p-3 bg-green-800 rounded-lg mb-4">
+                <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-lg font-bold">
+                    <i class="fa-regular fa-user"></i>
+                </div>
+                <div>
+                    <span class="block text-sm font-bold truncate w-32">{{ user.username }}</span>
+                    <span class="block text-xs text-green-300 font-bold">Senior Auditor</span>
+                </div>
+            </div>
+            <a href="/logout"
+                class="block w-full text-center bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20 font-bold text-sm tracking-wide py-3 rounded-lg transition">
+                TERMINATE SESSION
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full bg-gray-50/30 overflow-y-auto">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                Swal.fire({
+                    icon: '{{ category }}',
+                    title: '{{ "Notice" }}',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#22c55e',
+                    timer: 3000
+                });
+            });
+        </script>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="p-8 max-w-[1400px] mx-auto w-full space-y-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Audit Requests</h1>
+                    <p class="text-gray-500 mt-1">Review pending files requiring integrity validation from group owners.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr
+                            class="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                            <th class="p-4 pl-6">Data Owner</th>
+                            <th class="p-4">Group ID</th>
+                            <th class="p-4">File Name</th>
+                            <th class="p-4">Request Date</th>
+                            <th class="p-4 pr-6 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm text-gray-700 divide-y divide-gray-50">
+                        {% for req in requests %}
+                        <tr class="hover:bg-gray-50/50 transition pr-4">
+                            <td class="p-4 pl-6">
+                                <span class="font-bold text-gray-800">{{ req.owner }}</span>
+                            </td>
+                            <td class="p-4 text-gray-500 font-mono">{{ req.owner.lower() }}@group</td>
+                            <td class="p-4 font-bold text-gray-900">{{ req.filename }}</td>
+                            <td class="p-4 text-gray-500">{{ req.date }}</td>
+                            <td class="p-4 pr-6 text-right">
+                                <a href="/auditor/verify?file_id={{ req.id }}" onclick="showIntegrityScan(event)"
+                                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-[11px] rounded transition shadow tracking-widest uppercase">
+                                    Action
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-gray-400">No pending validation requests found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

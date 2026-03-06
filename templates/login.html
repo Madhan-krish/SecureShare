@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SecureShare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-800 relative">
+    <!-- Back Button -->
+    <a href="/"
+        class="absolute top-6 left-6 flex items-center gap-2 text-green-700 hover:text-green-900 font-semibold transition bg-white/80 backdrop-blur-sm shadow-sm px-4 py-2 rounded-full border border-green-200 hover:bg-green-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+                d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                clip-rule="evenodd" />
+        </svg>
+        Home
+    </a>
+
+    <div class="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+        style="height: 650px;">
+        <!-- Left Panel -->
+        <div class="hidden md:flex flex-col justify-between w-1/2 bg-green-800 p-12 relative z-10 box-border">
+            <div>
+                <div class="flex items-center gap-3 mb-10">
+                    <div
+                        class="bg-green-500 text-white rounded-lg h-8 w-8 flex items-center justify-center font-bold text-lg">
+                        S</div>
+                    <span class="text-white font-bold text-xl tracking-wide">SecureShare</span>
+                </div>
+
+                <h1 class="text-5xl font-extrabold text-white mb-2 leading-tight">Secure Entity Hub Login</h1>
+                <h1 class="text-5xl font-extrabold text-green-400 mb-8 leading-tight">Data<br>Cryptography</h1>
+
+                <p class="text-green-100 text-sm leading-relaxed max-w-sm">
+                    An AES-Based Anonymous Data Sharing Scheme with Dynamic Revocation and Third-Party Auditing for
+                    Cloud Environments
+                </p>
+            </div>
+
+            <div class="flex gap-4 mt-6 text-[10px] font-bold text-green-300 uppercase tracking-widest">
+                <span>CLOUD NATIVE</span>
+                <span>NOSQL METADATA</span>
+                <span>ZERO TRUST</span>
+            </div>
+        </div>
+
+        <!-- Right Panel bg changed matching image -->
+        <div class="w-full md:w-1/2 p-12 flex flex-col justify-center relative bg-white box-border">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">Identity Login</h2>
+            <p class="text-sm text-gray-500 mb-8 max-w-sm leading-relaxed">Identity verification required to access
+                encrypted volumes.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <script>
+                Swal.fire({
+                    icon: '{{ category }}',
+                    title: '{{ "Wait!" if category == "error" else "Success!" }}',
+                    text: '{{ message }}',
+                    confirmButtonColor: '#22c55e',
+                    confirmButtonText: '{{ "Try Again" if category == "error" else "OK" }}'
+                }).then(() => {
+
+                    window.location.href = "{{ success_redirect }}";
+
+                });
+            </script>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            <form action="/handle_login" method="POST" class="space-y-4">
+
+                <div>
+                    <label
+                        class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 mt-2">Operational
+                        Role</label>
+                    <input type="hidden" id="role" name="role" value="owner">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="selectRole('owner', this)"
+                            class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-[#15803d] text-white shadow-sm border border-[#15803d]">OWNER</button>
+                        <button type="button" onclick="selectRole('member', this)"
+                            class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100">MEMBER</button>
+                        <button type="button" onclick="selectRole('auditor', this)"
+                            class="role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100">TPA</button>
+                    </div>
+                </div>
+
+                <input type="email" name="email" required placeholder="Corporate Email Address"
+                    class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                <div class="relative w-full">
+                    <input type="password" id="login_password" name="password" required placeholder="Cipher Password"
+                        class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition">
+                    <button type="button" onclick="togglePasswordVisibility('login_password', 'toggleIcon')"
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-green-600 focus:outline-none">
+                        <i id="toggleIcon" class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+
+                <div class="flex justify-end mt-1">
+                    <a href="/forgot_password"
+                        class="text-[11px] text-green-600 hover:text-green-800 font-semibold transition">Forgot
+                        Password?</a>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition text-sm">
+                        Authenticate Identity
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-8 text-center absolute bottom-12 w-full left-0">
+                <a href="/register" class="text-sm text-green-600 hover:text-green-800 font-semibold transition">No
+                    registered identity? Request Access</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function handleLogin() {
+            Swal.fire({
+                icon: 'success',
+                title: 'Login Successful',
+                text: 'Redirecting to your Dashboard...',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.href = "/dashboard";
+            });
+        }
+        function selectRole(roleValue, btn) {
+            document.getElementById('role').value = roleValue;
+            const buttons = document.querySelectorAll('.role-btn');
+            buttons.forEach(b => {
+                b.className = 'role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100';
+            });
+            btn.className = 'role-btn flex-1 py-2.5 text-xs font-bold tracking-wide rounded-lg transition-all duration-200 bg-[#15803d] text-white shadow-sm border border-[#15803d]';
+        }
+    </script>
+</body>
+
+</html>
