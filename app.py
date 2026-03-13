@@ -474,7 +474,7 @@ def dashboard():
             owner_email = user.get('owner_email')
     
     # Calculate Live Stats for Dashboard
-    files_query = {"owner_email": owner_email, "source": "vault"}
+    files_query = {"owner_email": owner_email, "source": "vault", "status": {"$ne": "bin"}}
     all_files = list(files_collection.find(files_query).sort("upload_date", -1))
     
     files_count = len(all_files)
@@ -526,7 +526,14 @@ def dashboard():
     # Fetch 5 Recent Activities for Notifications
     recent_activities = []
     if owner_email:
-         activities = list(activities_collection.find({"owner_email": owner_email}).sort("timestamp", -1).limit(5))
+         query = {
+             "owner_email": owner_email,
+             "$or": [
+                 {"member_email": session.get('user_email')},
+                 {"action_type": "New Chat Message"}
+             ]
+         }
+         activities = list(activities_collection.find(query).sort("timestamp", -1).limit(5))
          for act in activities:
              recent_activities.append({
                  "action_type": act.get("action_type"),
@@ -573,13 +580,14 @@ def vault():
     
     vault_files = []
     try:
-        v_files = files_collection.find({"owner_email": owner_email, "source": "vault"}).sort("upload_date", -1)
+        v_files = files_collection.find({"owner_email": owner_email, "source": "vault", "status": {"$ne": "bin"}}).sort("upload_date", -1)
         for vf in v_files:
             orig_size_kb = vf.get('original_size', vf.get('size', 0)) / 1024
             comp_size_kb = vf.get('compressed_encrypted_size', vf.get('size', 0)) / 1024
             mtime = vf.get('upload_date', datetime.datetime.now()).strftime("%Y-%m-%d %H:%M")
             
             vault_files.append({
+                'id': str(vf['_id']),
                 'Key': vf.get('encrypted_name', ''),
                 'LastModified': mtime,
                 'OrigSize': f"{orig_size_kb:.2f} KB",
@@ -590,7 +598,7 @@ def vault():
         
     chat_files = []
     try:
-        c_files = files_collection.find({"owner_email": owner_email, "source": "chat"})
+        c_files = files_collection.find({"owner_email": owner_email, "source": "chat", "status": {"$ne": "bin"}})
         for cf in c_files:
             orig_size_kb = cf.get('original_size', cf.get('size', 0)) / 1024
             comp_size_kb = cf.get('compressed_encrypted_size', cf.get('size', 0)) / 1024
@@ -664,7 +672,8 @@ def upload_file():
             "original_size": len(file_data),
             "compressed_encrypted_size": len(encrypted_data),
             "size": len(file_data), # Legacy fallback
-            "file_hash": file_hash
+            "file_hash": file_hash,
+            "status": "active"
         }
         files_collection.insert_one(file_doc)
         
@@ -733,7 +742,8 @@ def chat_upload():
             "original_size": len(file_data),
             "compressed_encrypted_size": len(encrypted_data),
             "size": len(file_data), # Legacy fallback
-            "file_hash": file_hash
+            "file_hash": file_hash,
+            "status": "active"
         }
         inserted = files_collection.insert_one(file_doc)
         file_id = str(inserted.inserted_id)
@@ -859,7 +869,8 @@ def share_vault_file():
             "source": "chat",
             "source_type": "vault_shared",
             "upload_date": datetime.datetime.now(),
-            "size": orig_file.get('size', 0)
+            "size": orig_file.get('size', 0),
+            "status": "active"
         }
         inserted = files_collection.insert_one(shared_doc)
         new_file_id = str(inserted.inserted_id)
@@ -1090,33 +1101,30 @@ def view_bin():
     # Run auto-cleanup every time the bin is viewed
     cleanup_bin()
     
-    bin_files = []
     owner_email = session.get('owner_email', '')
-    owner_bin_folder = os.path.join(app.config['BIN_FOLDER'], owner_email) if owner_email else app.config['BIN_FOLDER']
     
-    if os.path.exists(owner_bin_folder):
-        files = os.listdir(owner_bin_folder)
-        current_time = datetime.datetime.now().timestamp()
+    bin_files = []
+    try:
+        b_files = files_collection.find({"owner_email": owner_email, "status": "bin"}).sort("deleted_at", -1)
         
-        for f in files:
-            file_path = os.path.join(owner_bin_folder, f)
-            if os.path.isfile(file_path):
-                stat = os.stat(file_path)
-                mtime = stat.st_mtime
-                mtime_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
-                size_kb = stat.st_size / 1024
-                
-                # Calculate days remaining
-                seconds_passed = current_time - mtime
-                days_passed = int(seconds_passed / (24 * 3600))
-                days_remaining = max(0, 30 - days_passed)
-                
-                bin_files.append({
-                    'Key': f,
-                    'DeletedOn': mtime_str,
-                    'Size': f"{size_kb:.2f} KB",
-                    'DaysRemaining': days_remaining
-                })
+        current_time = datetime.datetime.now()
+        
+        for f in b_files:
+            deleted_time = f.get('deleted_at', datetime.datetime.now())
+            days_passed = (current_time - deleted_time).days
+            days_remaining = max(0, 30 - days_passed)
+            
+            size_kb = f.get('original_size', f.get('size', 0)) / 1024
+            
+            bin_files.append({
+                'id': str(f['_id']),
+                'Key': f.get('encrypted_name', f.get('filename', 'Unknown')),
+                'DeletedOn': deleted_time.strftime("%Y-%m-%d %H:%M"),
+                'Size': f"{size_kb:.2f} KB",
+                'DaysRemaining': days_remaining
+            })
+    except Exception as e:
+        print(f"Error fetching bin files: {e}")
         
     return render_template('dashboard.html', user=user, bin_files=bin_files, active_page='bin')
 
@@ -1197,64 +1205,45 @@ def on_join_user_room(data):
     if 'user_email' in data:
         join_room(f"user_{data['user_email']}")
 
-@app.route('/move_to_bin/<path:filename>')
-def move_to_bin(filename):
+@app.route('/move_to_bin/<file_id>', methods=['POST', 'GET'])
+def move_to_bin(file_id):
     if 'user_email' not in session:
-        return redirect(url_for('login_page'))
+        return jsonify({"error": "Unauthorized"}), 401
         
     try:
         owner_email = session.get('owner_email', '')
-        owner_folder = os.path.join(app.config['UPLOAD_FOLDER'], owner_email) if owner_email else app.config['UPLOAD_FOLDER']
-        owner_bin_folder = os.path.join(app.config['BIN_FOLDER'], owner_email) if owner_email else app.config['BIN_FOLDER']
+        f_doc = files_collection.find_one({"_id": ObjectId(file_id), "owner_email": owner_email})
         
-        if not os.path.exists(owner_bin_folder):
-            os.makedirs(owner_bin_folder)
-            
-        source_path = os.path.join(owner_folder, filename)
-        dest_path = os.path.join(owner_bin_folder, filename)
-        
-        if os.path.exists(source_path):
-            import shutil
-            shutil.move(source_path, dest_path)
-            # Update the modification time so the 30-day timer starts from when it entered the bin
-            os.utime(dest_path, None) 
-            flash(f"'{filename}' moved to Recycle Bin.", "success")
+        if f_doc:
+            files_collection.update_one(
+                {"_id": ObjectId(file_id)},
+                {"$set": {"status": "bin", "deleted_at": datetime.datetime.now()}}
+            )
+            return jsonify({"success": True, "message": f"'{f_doc.get('filename')}' soft deleted and moved to Recycle Bin."})
         else:
-            flash("File not found!", "error")
+            return jsonify({"error": "File not found or unauthorized!"}), 404
             
     except Exception as e:
-        flash(f"Error moving file: {e}", "error")
-        
-    return redirect(url_for('vault'))
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/delete_asset/<path:filename>')
-def delete_asset(filename):
+@app.route('/delete_asset/<file_id>')
+def delete_asset(file_id):
     if 'user_email' not in session:
          return redirect(url_for('login_page'))
     try:
          owner_email = session.get('owner_email', '')
-         f_doc = files_collection.find_one({"encrypted_name": filename, "owner_email": owner_email})
+         f_doc = files_collection.find_one({"_id": ObjectId(file_id), "owner_email": owner_email})
          if f_doc:
-             if f_doc.get('s3_key'):
-                 try:
-                     print(f"Deleting {filename} from S3...")
-                     s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=f_doc['s3_key'])
-                 except Exception as e:
-                     print(f"Error deleting from S3: {str(e)}")
-             files_collection.delete_one({"_id": f_doc["_id"]})
-             
-             # Also ensure we check legacy local
-             owner_folder = os.path.join(app.config['UPLOAD_FOLDER'], owner_email) if owner_email else app.config['UPLOAD_FOLDER']
-             file_path = os.path.join(owner_folder, filename)
-             if os.path.exists(file_path):
-                 os.remove(file_path)
-                 
-             flash(f"'{filename}' has been successfully deleted from all secure systems.", "success")
+             files_collection.update_one(
+                 {"_id": ObjectId(file_id)},
+                 {"$set": {"status": "bin", "deleted_at": datetime.datetime.now()}}
+             )
+             flash(f"'{f_doc.get('filename')}' has been soft deleted (sent to Recycle Bin).", "success")
          else:
-             flash("File not found!", "error")
+             flash("File not found or unauthorized!", "error")
     except Exception as e:
          flash(f"Error dropping file: {e}", "error")
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('vault'))
 
 @app.route('/delete_bulk', methods=['POST'])
 def delete_bulk():
@@ -1298,49 +1287,60 @@ def delete_bulk():
             
     return jsonify({"success": True, "deleted": deleted_count})
 
-@app.route('/restore/<path:filename>')
-def restore_file(filename):
+@app.route('/restore/<file_id>')
+def restore_file(file_id):
     if 'user_email' not in session:
         return redirect(url_for('login_page'))
         
     try:
         owner_email = session.get('owner_email', '')
-        owner_folder = os.path.join(app.config['UPLOAD_FOLDER'], owner_email) if owner_email else app.config['UPLOAD_FOLDER']
-        owner_bin_folder = os.path.join(app.config['BIN_FOLDER'], owner_email) if owner_email else app.config['BIN_FOLDER']
+        f_doc = files_collection.find_one({"_id": ObjectId(file_id), "owner_email": owner_email})
         
-        if not os.path.exists(owner_folder):
-            os.makedirs(owner_folder)
-            
-        source_path = os.path.join(owner_bin_folder, filename)
-        dest_path = os.path.join(owner_folder, filename)
-        
-        if os.path.exists(source_path):
-            import shutil
-            shutil.move(source_path, dest_path)
-            flash(f"'{filename}' successfully restored to the Vault.", "success")
+        if f_doc:
+            files_collection.update_one(
+                {"_id": ObjectId(file_id)},
+                {"$set": {"status": "active", "deleted_at": None}}
+            )
+            flash(f"'{f_doc.get('filename')}' successfully restored to the Vault.", "success")
         else:
-            flash("File not found in bin!", "error")
+            flash("File not found in bin or unauthorized!", "error")
             
     except Exception as e:
         flash(f"Error restoring file: {e}", "error")
         
     return redirect(url_for('view_bin'))
 
-@app.route('/delete_permanent/<path:filename>')
-def delete_permanent(filename):
+@app.route('/delete_permanent/<file_id>')
+def delete_permanent(file_id):
     if 'user_email' not in session:
         return redirect(url_for('login_page'))
         
     try:
         owner_email = session.get('owner_email', '')
-        owner_bin_folder = os.path.join(app.config['BIN_FOLDER'], owner_email) if owner_email else app.config['BIN_FOLDER']
+        f_doc = files_collection.find_one({"_id": ObjectId(file_id), "owner_email": owner_email})
         
-        file_path = os.path.join(owner_bin_folder, filename)
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if f_doc:
+            filename = f_doc.get('filename', 'Unknown')
+            if f_doc.get('s3_key'):
+                try:
+                    s3_client.delete_object(Bucket=S3_BUCKET_NAME, Key=f_doc['s3_key'])
+                except Exception as e:
+                    print(f"Error deleting from S3: {str(e)}")
+            
+            files_collection.delete_one({"_id": f_doc["_id"]})
+            
+            # Legacy local cleanup
+            owner_folder = os.path.join(app.config['UPLOAD_FOLDER'], owner_email) if owner_email else app.config['UPLOAD_FOLDER']
+            file_path = os.path.join(owner_folder, f_doc.get('encrypted_name', ''))
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+            
             flash(f"'{filename}' has been permanently eradicated.", "success")
         else:
-            flash("File not found in bin!", "error")
+            flash("File not found in bin or unauthorized!", "error")
     except Exception as e:
         flash(f"Error deleting file permanently: {e}", "error")
         
@@ -1898,6 +1898,9 @@ def handle_send_message(data):
     inserted = chats_collection.insert_one(message)
     message['_id'] = str(inserted.inserted_id)
     message['timestamp_str'] = message['timestamp'].strftime("%H:%M")
+    
+    if room.startswith('group_'):
+        log_activity(sender_email, 'New Chat Message', 'Group Channel', owner_email=room.split('group_')[1])
     
     emit('receive_message', message, room=room)
 
