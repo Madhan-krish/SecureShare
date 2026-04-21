@@ -83,11 +83,4 @@ Before you begin, ensure you have met the following requirements:
 *   `uploads/`: Temporary local directory used for streaming files before encryption and upload to S3.
 *   `requirements.txt`: List of Python dependencies. *(Ensure this file exists or generate using `pip freeze > requirements.txt`)*
 
-## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome!
-Feel free to check out the [issues page](https://github.com/Madhan-krish/SecureShare/issues) if you want to contribute.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
